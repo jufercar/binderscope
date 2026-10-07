@@ -126,6 +126,8 @@ class ReferenceFrame:
                 probe_radius=self.geometry.probe_radius,
                 voxel=self.geometry.voxel,
             )
+            # The binder's own volume does not depend on what it is compared
+            # against, so it is reported once under a target-free name.
             out["V_binder_A3"] = overlap["volume"]
             out[f"V_inter_{target.label}_A3"] = overlap["intersection"]
             out[f"V_inter_{target.label}_pct"] = overlap["intersection_pct"]

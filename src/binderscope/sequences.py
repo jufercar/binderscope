@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import warnings
 from pathlib import Path
 
 from Bio.PDB import PDBParser, PPBuilder
@@ -18,6 +19,9 @@ def extract_sequences(
 
     ``chain`` restricts the output to one chain (typically the binder). Returns
     the records, and writes FASTA and/or CSV when given a path.
+
+    Raises ``ValueError`` when nothing could be extracted, rather than writing
+    an empty FASTA that looks like a successful run.
     """
     pdb_dir = Path(pdb_dir)
     if not pdb_dir.is_dir():
@@ -36,7 +40,7 @@ def extract_sequences(
         try:
             structure = parser.get_structure(name, str(pdb_file))
         except Exception as exc:
-            print(f"  skipped {name}: cannot parse ({exc})")
+            warnings.warn(f"skipped {name}: cannot parse ({exc})", stacklevel=2)
             continue
 
         for chain_obj in structure[0]:
@@ -55,6 +59,14 @@ def extract_sequences(
                         "sequence": sequence,
                     }
                 )
+
+    if not records:
+        where = f"chain '{chain}' of " if chain else ""
+        raise ValueError(
+            f"no sequences could be extracted from {where}{len(pdb_files)} PDB "
+            f"file(s) in {pdb_dir}; check the chain id and that the files hold "
+            "connected polypeptide backbones"
+        )
 
     if fasta_out:
         fasta_out = Path(fasta_out)

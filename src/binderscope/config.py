@@ -8,7 +8,7 @@ reconstruction (mutation reversion and reference-frame geometry).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -106,6 +106,8 @@ class Reference:
 
 @dataclass
 class RosettaOptions:
+    """How PyRosetta is initialised and how the interface is relaxed and scored."""
+
     dalphaball: Path | None = None
     dssp: Path | None = None
     relax_repeats: int = 1
@@ -121,6 +123,8 @@ class RosettaOptions:
 
 @dataclass
 class GeometryOptions:
+    """Distance thresholds, in ångström, for contacts and voxelised volumes."""
+
     clash_hard: float = 2.0
     clash_soft: float = 2.5
     interface_cutoff: float = 4.0
@@ -132,6 +136,8 @@ class GeometryOptions:
 
 @dataclass
 class RankMetric:
+    """One column of the ranking score: which metric, which direction, what weight."""
+
     col: str
     label: str
     higher_is_better: bool
@@ -141,6 +147,8 @@ class RankMetric:
 
 @dataclass
 class Filter:
+    """A threshold on one column, used for hard filtering and ranking exclusions."""
+
     col: str
     label: str
     op: str
@@ -154,6 +162,13 @@ class Filter:
 
 @dataclass
 class Config:
+    """A complete run: where the designs are, how to score them, how to rank them.
+
+    Built by :func:`load_config` from a single YAML file. Output paths are
+    derived from ``name`` and ``output_dir`` so that stages agree on where to
+    find each other's results without any of them being configured twice.
+    """
+
     name: str
     designs_dir: Path
     output_dir: Path
@@ -204,6 +219,27 @@ class Config:
         return sum(m.weight for m in self.rank_metrics)
 
 
+def _section(cls, raw: dict[str, Any] | None, section: str):
+    """Build a typed options dataclass, reporting unknown keys as config errors.
+
+    A mistyped key would otherwise surface as a TypeError traceback from deep
+    inside the constructor, which is not something a user editing YAML should
+    have to read.
+    """
+    raw = dict(raw or {})
+    known = {f.name for f in fields(cls)}
+    unknown = sorted(set(raw) - known)
+    if unknown:
+        raise ConfigError(
+            f"unknown key(s) in '{section}': {', '.join(unknown)}. "
+            f"Valid keys are: {', '.join(sorted(known))}"
+        )
+    try:
+        return cls(**raw)
+    except (TypeError, ValueError) as exc:
+        raise ConfigError(f"invalid '{section}' section: {exc}") from exc
+
+
 def _path(base: Path, value: Any) -> Path:
     """Resolve a config path relative to the config file's own directory."""
     p = Path(str(value)).expanduser()
@@ -242,7 +278,7 @@ def _build(raw: dict[str, Any], base: Path) -> Config:
         ),
         reference=ref,
         rosetta=_build_rosetta(raw.get("rosetta"), base),
-        geometry=GeometryOptions(**(raw.get("geometry") or {})),
+        geometry=_section(GeometryOptions, raw.get("geometry"), "geometry"),
         rank_metrics=[
             RankMetric(
                 col=m["col"],
@@ -310,7 +346,7 @@ def _build_rosetta(raw: dict[str, Any] | None, base: Path) -> RosettaOptions:
             raw[key] = _path(base, raw[key])
         else:
             raw.pop(key, None)
-    return RosettaOptions(**raw)
+    return _section(RosettaOptions, raw, "rosetta")
 
 
 def _build_reference(raw: dict[str, Any] | None, base: Path) -> Reference | None:
