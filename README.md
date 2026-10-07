@@ -264,7 +264,14 @@ that does not match the structures.
 
 ## Citing
 
-See [`CITATION.cff`](CITATION.cff).
+If this tool contributes to published work, please cite it. Machine-readable
+metadata is in [`CITATION.cff`](CITATION.cff), which GitHub renders as a
+"Cite this repository" button.
+
+> Fernández-Carrillo, J. *binderscope: structure-aware triage of protein binder
+> designs* (2026). https://github.com/jufercar/binderscope
+
+Author ORCID: [0000-0002-0342-8729](https://orcid.org/0000-0002-0342-8729)
 
 ## Changelog
 
