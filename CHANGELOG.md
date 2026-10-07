@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.1.0] — 2026-10-07
 
+Archived on Zenodo: [10.5281/zenodo.23214340](https://doi.org/10.5281/zenodo.23214340)
+
 First release. A post-processing pipeline for protein binder design campaigns,
 refactored from a single-target analysis notebook into a configuration-driven
 tool, so that the method can be reproduced and published independently of the

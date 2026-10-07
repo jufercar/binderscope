@@ -12,11 +12,22 @@ type: software
 version: 0.1.0
 date-released: "2026-10-07"
 license: MIT
+# Version DOI for v0.1.0. The concept DOI below always resolves to the latest
+# version and is the one to use when referring to the software as a whole.
+doi: 10.5281/zenodo.23214340
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23214340
+    description: Archived snapshot of version v0.1.0
+  - type: doi
+    value: 10.5281/zenodo.23214339
+    description: Concept DOI, resolving to the latest version
 repository-code: https://github.com/jufercar/binderscope
 authors:
   - family-names: Fernández-Carrillo
     given-names: Juan
     email: juanfc1995@gmail.com
+    affiliation: "Instituto de Química Física Blas Cabrera (IQF - CSIC)"
     orcid: "https://orcid.org/0000-0002-0342-8729"
 keywords:
   - protein design

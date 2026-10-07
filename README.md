@@ -1,5 +1,9 @@
 # binderscope
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23214339.svg)](https://doi.org/10.5281/zenodo.23214339)
+[![CI](https://github.com/jufercar/binderscope/actions/workflows/ci.yml/badge.svg)](https://github.com/jufercar/binderscope/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Structure-aware triage of protein binder designs.
 
 A design campaign gives you hundreds of candidates and a table of numbers.
@@ -268,10 +272,16 @@ If this tool contributes to published work, please cite it. Machine-readable
 metadata is in [`CITATION.cff`](CITATION.cff), which GitHub renders as a
 "Cite this repository" button.
 
-> Fernández-Carrillo, J. *binderscope: structure-aware triage of protein binder
-> designs* (2026). https://github.com/jufercar/binderscope
+> Fernández-Carrillo, J. (2026). *binderscope: structure-aware triage of protein
+> binder designs* (Version v0.1.0) [Computer software]. Zenodo.
+> https://doi.org/10.5281/zenodo.23214340
 
-Author ORCID: [0000-0002-0342-8729](https://orcid.org/0000-0002-0342-8729)
+That DOI archives this exact version. To refer to the software as a whole,
+across versions, use the concept DOI [10.5281/zenodo.23214339](https://doi.org/10.5281/zenodo.23214339) — the one
+the badge above points to.
+
+Juan Fernández-Carrillo · Instituto de Química Física Blas Cabrera (IQF - CSIC) ·
+ORCID [0000-0002-0342-8729](https://orcid.org/0000-0002-0342-8729)
 
 ## Changelog
 
