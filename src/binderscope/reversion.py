@@ -45,6 +45,8 @@ class ReversionError(RuntimeError):
 
 @dataclass
 class ReversionResult:
+    """Outcome of reverting one design, including superposition diagnostics."""
+
     rmsd_ca: float
     binder_length: int
     anchors: int

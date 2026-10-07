@@ -262,6 +262,7 @@ class InterfaceScorer:
 
 
 def build_scorer(config: Config) -> InterfaceScorer:
+    """Create a scorer wired to a run's Rosetta options, geometry and chains."""
     return InterfaceScorer(
         config.rosetta,
         geometry=config.geometry,

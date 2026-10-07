@@ -26,6 +26,7 @@ def _add_config_argument(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Assemble the argument parser, one subcommand per pipeline stage."""
     parser = argparse.ArgumentParser(
         prog="binderscope",
         description="Structure-aware triage of protein binder designs.",
@@ -207,6 +208,12 @@ COMMANDS = {
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Entry point. Returns a process exit status rather than raising.
+
+    Expected problems (a bad config, a missing input) are reported as a single
+    line on stderr; an interrupt leaves completed work on disk so the run can
+    be resumed.
+    """
     args = build_parser().parse_args(argv)
     try:
         return COMMANDS[args.command](args)

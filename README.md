@@ -128,6 +128,57 @@ the page documents its own provenance), an **Explorer** with live filters, a
 comparison radar and FASTA export, and a **Ranking** view with per-metric
 contribution breakdowns.
 
+## Project structure
+
+```
+binderscope/
+├── src/binderscope/
+│   ├── config.py          Run configuration: schema, validation, derived paths
+│   ├── mapping.py         Residue map between design and reference numbering
+│   ├── reversion.py       Wild-type reconstruction of an engineered target
+│   ├── rosetta.py         PyRosetta interface scoring (optional dependency)
+│   ├── spatial.py         Placement geometry in the reference frame
+│   ├── geometry.py        Contacts and voxelised volume overlap
+│   ├── interface.py       Interface composition and secondary structure
+│   ├── merge.py           Join with BindCraft's predictor statistics
+│   ├── ranking.py         Normalisation, weighting, hard filters
+│   ├── sequences.py       FASTA/CSV export from design structures
+│   ├── pymol_session.py   Optional per-design PyMOL sessions
+│   ├── pipeline.py        Stage orchestration, caching and resumability
+│   ├── cli.py             Command-line interface
+│   └── dashboard/         Self-contained HTML report (builder + template)
+├── configs/               Annotated run configurations (see "Use")
+├── examples/              Synthetic sample data and its generator
+├── notebooks/             Walkthrough of the ranking and dashboard stages
+└── tests/                 Test suite; needs no PyRosetta and no real data
+```
+
+## Configuration reference
+
+A run is one YAML file; relative paths resolve against the file itself. The
+shipped configs are commented in full — this is the summary.
+
+| Key | Required | Meaning |
+|---|---|---|
+| `name` | yes | Run name; also prefixes every output file |
+| `designs` | yes | Directory of design PDBs (BindCraft `Accepted/`) |
+| `output` | yes | Where metrics, rankings and the dashboard are written |
+| `description` | no | Free text, shown on the dashboard |
+| `bindcraft_stats` | no | `final_design_stats.csv` to join predictor columns from |
+| `chains.target` / `chains.binder` | no | Chain ids in the design PDBs (default `A` / `B`) |
+| `reversion_strategy` | no | `truncate` (default) or `donor` |
+| `reference.*` | no | Reference structure and residue map; enables reversion and placement geometry |
+| `rosetta.*` | no | DAlphaBall and DSSP paths, relax settings, score function |
+| `geometry.*` | no | Contact and volume thresholds in ångström |
+| `filters` | no | Hard thresholds, reported by `rank` and used as the dashboard's initial state |
+| `ranking.metrics` | for `rank` | Which metrics score a design, in which direction, with what weight |
+| `ranking.exclude` | no | Rows dropped *before* normalisation |
+| `pymol.*` | no | PyMOL binary and session colours |
+
+`rosetta.interface` is derived from `chains` and does not need to be set; a
+value that disagrees with them is rejected when the config loads. Nothing here
+reads environment variables, so there is no `.env` to configure.
+
 ## Notes on method
 
 **Reversion strategy.** The default, `truncate`, keeps the backbone and `CB`,
@@ -178,10 +229,12 @@ pip install -e ".[dev]"
 pytest
 ```
 
-79 tests covering residue mapping, clash and volume geometry, reversion against
-synthetic structures (including grafting geometry and coordinate frames),
-ranking and filter semantics, config validation and dashboard rendering. None
-require PyRosetta or any experimental data.
+119 tests covering residue mapping, clash and volume geometry, reversion
+against synthetic structures (including grafting geometry and coordinate
+frames), placement geometry, stage orchestration and resumability, sequence
+export, ranking and filter semantics, config validation and dashboard
+rendering. None require PyRosetta or any experimental data, so the suite runs
+anywhere in about a second.
 
 The PyRosetta scoring stage cannot be covered that way, so it is verified by
 running it: `score` has been exercised on real two-chain complexes with
@@ -198,9 +251,24 @@ as well:
 > protein binders with BindCraft. *Nature* **646**, 483–492 (2025).
 > https://doi.org/10.1038/s41586-025-09429-6
 
+## Contributing
+
+Bug reports and pull requests are welcome — see
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the development setup, the checks CI
+runs, and notes on adding a metric or a reversion strategy.
+
+If you hit a problem with a real design campaign, the most useful report
+includes the config file (with any confidential paths removed) and what the
+stage printed, since nearly every failure is a chain id or a residue mapping
+that does not match the structures.
+
 ## Citing
 
 See [`CITATION.cff`](CITATION.cff).
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Licence
 

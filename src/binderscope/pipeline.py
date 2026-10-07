@@ -26,6 +26,8 @@ from .spatial import ReferenceFrame
 
 @dataclass
 class StageReport:
+    """What one stage did: how much work was done, resumed, and what failed."""
+
     processed: int = 0
     skipped: int = 0
     failures: list[tuple[str, str]] = field(default_factory=list)
