@@ -9,7 +9,7 @@ description = "Structure-aware triage of protein binder designs: wild-type rever
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
-authors = [{ name = "Juan Carrillo", email = "juanfc1995@gmail.com" }]
+authors = [{ name = "Juan Fernández-Carrillo", email = "juanfc1995@gmail.com" }]
 keywords = [
     "protein design", "binder design", "structural biology",
     "pyrosetta", "bindcraft", "alphafold", "interface analysis",
@@ -33,8 +33,8 @@ dependencies = [
 dev = ["pytest>=7.0", "ruff>=0.4"]
 
 [project.urls]
-Homepage = "https://github.com/jcarrillo/binderscope"
-Issues = "https://github.com/jcarrillo/binderscope/issues"
+Homepage = "https://github.com/jufercar/binderscope"
+Issues = "https://github.com/jufercar/binderscope/issues"
 
 [project.scripts]
 binderscope = "binderscope.cli:main"

@@ -19,6 +19,9 @@ AA3 = {
     "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
 }
 
+#: See binderscope.reversion for what each one does.
+REVERSION_STRATEGIES = frozenset({"truncate", "donor"})
+
 
 class ConfigError(ValueError):
     """Raised when a configuration file is structurally invalid."""
@@ -109,7 +112,10 @@ class RosettaOptions:
     relax_max_iter: int = 100
     relax_backbone: bool = False
     score_function: str = "beta_nov16"
-    interface: str = "A_B"
+    #: Interface specification for InterfaceAnalyzerMover. Left unset it is
+    #: derived from the configured chains, which is what keeps the two from
+    #: silently disagreeing.
+    interface: str | None = None
     extra_flags: list[str] = field(default_factory=list)
 
 
@@ -161,6 +167,7 @@ class Config:
     filters: list[Filter] = field(default_factory=list)
     rank_exclude: list[Filter] = field(default_factory=list)
     pymol: dict[str, Any] = field(default_factory=dict)
+    reversion_strategy: str = "truncate"
     description: str = ""
 
     # ── derived paths ────────────────────────────────────────────────────────
@@ -249,12 +256,39 @@ def _build(raw: dict[str, Any], base: Path) -> Config:
         rank_exclude=[_build_filter(f) for f in (raw.get("ranking") or {}).get("exclude", [])],
         filters=[_build_filter(f) for f in raw.get("filters", [])],
         pymol=raw.get("pymol") or {},
+        reversion_strategy=str(raw.get("reversion_strategy", "truncate")),
     )
 
     if cfg.needs_reversion and cfg.reference and not cfg.reference.native_target:
         raise ConfigError(
             "reference.revert_mutations requires reference.native_target "
             "(the as-designed target structure whose residues get reverted)"
+        )
+
+    if cfg.reversion_strategy not in REVERSION_STRATEGIES:
+        raise ConfigError(
+            f"reversion_strategy must be one of "
+            f"{', '.join(sorted(REVERSION_STRATEGIES))}; got "
+            f"{cfg.reversion_strategy!r}"
+        )
+
+    if "reversion_strategy" in (raw.get("pymol") or {}):
+        raise ConfigError(
+            "reversion_strategy belongs at the top level of the config, not "
+            "under 'pymol' (it has nothing to do with session rendering)"
+        )
+
+    # The chains and the Rosetta interface specification describe the same two
+    # chains. Letting them disagree would score an interface that is not there.
+    derived = f"{cfg.target_chain}_{cfg.binder_chain}"
+    if cfg.rosetta.interface is None:
+        cfg.rosetta.interface = derived
+    elif cfg.rosetta.interface != derived:
+        raise ConfigError(
+            f"rosetta.interface is '{cfg.rosetta.interface}' but chains are "
+            f"target '{cfg.target_chain}' and binder '{cfg.binder_chain}', "
+            f"which give '{derived}'. Remove rosetta.interface to derive it, "
+            "or correct one of the two."
         )
     return cfg
 

@@ -79,7 +79,8 @@ rosetta:
   dssp: ../BindCraft/functions/dssp
   relax_repeats: 1
   relax_backbone: false
-  interface: A_B
+  # interface is derived from `chains` above; set it only to override, and it
+  # must agree with them.
 
 geometry:
   clash_hard: 2.0
@@ -123,10 +124,12 @@ ranking:
     - { col: surface_hydro,       label: surf_hydro,   higher_is_better: false, weight: 1.0,
         description: Hydrophobic fraction of the binder surface }
 
+# "truncate" keeps backbone + CB and lets Rosetta rebuild the side chain with
+# ideal geometry. "donor" transplants the reference rotamer instead; the
+# reference is superposed onto each design first, so its own frame is irrelevant.
+reversion_strategy: truncate
+
 pymol:
-  # "truncate" keeps backbone + CB and lets Rosetta rebuild the side chain.
-  # "donor" transplants the reference rotamer instead.
-  reversion_strategy: truncate
   colors:
     binder: cyan
     target: wheat

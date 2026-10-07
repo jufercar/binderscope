@@ -117,7 +117,7 @@ def run_reversion(
                 reference_chain=config.reference.target_chain,
                 design_target_chain=config.target_chain,
                 design_binder_chain=config.binder_chain,
-                strategy=config.pymol.get("reversion_strategy", "truncate"),
+                strategy=config.reversion_strategy,
             )
         except (ReversionError, KeyError, ValueError) as exc:
             report.failures.append((name, str(exc)))
@@ -184,10 +184,13 @@ def run_scoring(config: Config, verbose: bool = True) -> StageReport:
 
     scorer = build_scorer(config)
     if verbose:
-        print(
-            "  BuriedUnsatHbonds: "
-            + ("DAlphaBall" if scorer.use_dalphaball else "InterfaceAnalyzer fallback")
-        )
+        if scorer.use_dalphaball:
+            print("  BuriedUnsatHbonds: DAlphaBall")
+        else:
+            print(
+                "  BuriedUnsatHbonds: InterfaceAnalyzer fallback "
+                f"({scorer.buns_unavailable_reason})"
+            )
 
     reversion_csv = config.reverted_dir / "reversion.csv"
     reversion_data: dict[str, dict] = {}
@@ -205,7 +208,9 @@ def run_scoring(config: Config, verbose: bool = True) -> StageReport:
         base, model = split_design_name(name)
         started = time.time()
         row: dict = {"design": name, "design_base": base, "model": model}
-        row.update(reversion_data.get(name, {}))
+        cached = dict(reversion_data.get(name, {}))
+        cached.pop("binder_len", None)  # the scorer recomputes this itself
+        row.update(cached)
 
         try:
             row.update(scorer.score(pdb_file, target_chain=config.target_chain))

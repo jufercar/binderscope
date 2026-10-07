@@ -60,6 +60,77 @@ def test_donor_strategy_transplants_the_reference_rotamer(
     assert not {atom.get_name() for atom in residue} & {"CG", "NZ"}
 
 
+def test_donor_survives_a_reference_in_another_frame(
+    tmp_path, design_pdb, native_target_pdb, reference_pdb, reference_pdb_other_frame
+):
+    # Regression: the reference carries its own coordinate frame, so it needs
+    # its own superposition. Reusing the native-to-design transform grafted
+    # side chains tens of ångström from their own backbone, without any error.
+    def bond_length(reference):
+        _, model = run(tmp_path, design_pdb, native_target_pdb, reference, strategy="donor")
+        residue = model["A"][5]
+        ca = residue["CA"].get_vector().get_array()
+        cb = residue["CB"].get_vector().get_array()
+        return float(((cb - ca) ** 2).sum() ** 0.5)
+
+    same_frame = bond_length(reference_pdb)
+    other_frame = bond_length(reference_pdb_other_frame)
+    assert other_frame == pytest.approx(same_frame, abs=1e-3)
+
+
+def test_donor_preserves_the_reference_rotamer_geometry(
+    tmp_path, design_pdb, native_target_pdb, reference_pdb_other_frame
+):
+    # The point of grafting is to keep the reference's own side-chain geometry.
+    # A global-only superposition left the CA-CB bond stretched by up to 0.4 Å,
+    # which chi-only relax cannot repair because it moves torsions, not bonds.
+    reference = PDBParser(QUIET=True).get_structure("r", str(reference_pdb_other_frame))[0]
+    donor = reference["D"][105]
+    expected = donor["CB"] - donor["CA"]
+
+    _, model = run(
+        tmp_path, design_pdb, native_target_pdb, reference_pdb_other_frame, strategy="donor"
+    )
+    grafted = model["A"][5]
+    assert (grafted["CB"] - grafted["CA"]) == pytest.approx(expected, abs=1e-4)
+
+
+def test_donor_needs_backbone_anchors(
+    tmp_path, design_pdb, native_target_pdb, reference_pdb, monkeypatch
+):
+    import binderscope.reversion as reversion
+
+    original = reversion._residue_index
+
+    def strip_anchor(chain):
+        index = original(chain)
+        # Drop N from the donor residue, leaving too few anchors to graft on.
+        if 105 in index and "N" in index[105]:
+            index[105].detach_child("N")
+        return index
+
+    monkeypatch.setattr(reversion, "_residue_index", strip_anchor)
+    with pytest.raises(ReversionError, match="without backbone atoms"):
+        run(tmp_path, design_pdb, native_target_pdb, reference_pdb, strategy="donor")
+
+
+def test_donor_reports_the_reference_superposition(
+    tmp_path, design_pdb, native_target_pdb, reference_pdb_other_frame
+):
+    result, _ = run(
+        tmp_path, design_pdb, native_target_pdb, reference_pdb_other_frame, strategy="donor"
+    )
+    assert result.rmsd_reference is not None
+    assert result.rmsd_reference == pytest.approx(0.0, abs=1e-2)
+
+
+def test_truncate_needs_no_reference_superposition(
+    tmp_path, design_pdb, native_target_pdb, reference_pdb
+):
+    result, _ = run(tmp_path, design_pdb, native_target_pdb, reference_pdb)
+    assert result.rmsd_reference is None
+
+
 def test_unmutated_residues_are_untouched(
     tmp_path, design_pdb, native_target_pdb, reference_pdb
 ):

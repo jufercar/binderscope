@@ -85,3 +85,45 @@ def reference_pdb(tmp_path) -> Path:
         tmp_path / "reference.pdb",
         {"D": TARGET_REFERENCE, "B": [(200 + n, "VAL") for n in range(1, 6)]},
     )
+
+
+def transform_pdb(path: Path, degrees: float = 37.0, shift=(14.0, -9.0, 22.0)) -> Path:
+    """Rotate and translate every atom in place, putting the file in another frame.
+
+    Reference structures come from elsewhere and carry their own coordinate
+    frame; a fixture that shares coordinates with the design cannot catch code
+    that forgets to superpose.
+    """
+    import numpy as np
+
+    angle = np.radians(degrees)
+    rotation = np.array(
+        [
+            [np.cos(angle), -np.sin(angle), 0.0],
+            [np.sin(angle), np.cos(angle), 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+    offset = np.asarray(shift, dtype=float)
+
+    lines = []
+    for line in path.read_text().splitlines(keepends=True):
+        if line.startswith("ATOM"):
+            xyz = np.array(
+                [float(line[30:38]), float(line[38:46]), float(line[46:54])]
+            )
+            x, y, z = rotation @ xyz + offset
+            line = f"{line[:30]}{x:8.3f}{y:8.3f}{z:8.3f}{line[54:]}"
+        lines.append(line)
+    path.write_text("".join(lines))
+    return path
+
+
+@pytest.fixture
+def reference_pdb_other_frame(tmp_path) -> Path:
+    """A reference structure in a coordinate frame of its own."""
+    path = write_pdb(
+        tmp_path / "reference_moved.pdb",
+        {"D": TARGET_REFERENCE, "B": [(200 + n, "VAL") for n in range(1, 6)]},
+    )
+    return transform_pdb(path)

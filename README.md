@@ -55,14 +55,14 @@ an unpublished construct stays in a config file you do not commit.
 ## Install
 
 ```bash
-git clone https://github.com/jcarrillo/binderscope
+git clone https://github.com/jufercar/binderscope
 cd binderscope
 pip install -e .
 ```
 
 Python ≥ 3.10, plus Biopython, NumPy, pandas, SciPy and PyYAML.
 
-Three things are optional, and only the stages that need them are affected:
+Four things are optional, and only the stages that need them are affected:
 
 | Component | Needed for | Without it |
 |---|---|---|
@@ -136,12 +136,24 @@ geometry before the chi-only relax repacks it — chemically consistent for any
 substitution, including ones where the wild-type residue is larger than the
 engineered one. The alternative, `donor`, transplants heavy-atom coordinates
 from the reference structure, preserving the experimentally observed rotamer at
-the cost of requiring that residue to be present and complete.
+the cost of requiring that residue to be present with a complete backbone.
+
+Grafting is done by superposing the donor onto the target residue's own N-CA-C,
+not by relying on a global superposition of the reference. A global fit is
+accurate to a few tenths of an ångström overall, but at any individual residue
+the backbones still differ, and grafting across that gap distorts the CA-CB
+bond — which chi-only relax cannot repair, because it rebuilds torsions rather
+than bond lengths.
 
 **Why chi-only relax.** The backbone comes from a structure predictor and is the
 hypothesis under test. Letting FastRelax move it would improve the Rosetta score
 while destroying the thing being measured. Side chains are repacked because
 predicted rotamers are not reliable enough to score directly.
+
+**Chains are declared once.** `rosetta.interface` is derived from the
+configured target and binder chains. Setting it to something that disagrees
+with them is rejected when the config loads, rather than silently scoring an
+interface that is not there.
 
 **Why exclusions happen before normalisation.** A single relaxation artefact
 with a positive interface energy will stretch a min-max scale and compress every
@@ -166,9 +178,15 @@ pip install -e ".[dev]"
 pytest
 ```
 
-66 tests covering residue mapping, clash and volume geometry, reversion against
-synthetic structures, ranking and filter semantics, config validation and
-dashboard rendering. None require PyRosetta or any experimental data.
+79 tests covering residue mapping, clash and volume geometry, reversion against
+synthetic structures (including grafting geometry and coordinate frames),
+ranking and filter semantics, config validation and dashboard rendering. None
+require PyRosetta or any experimental data.
+
+The PyRosetta scoring stage cannot be covered that way, so it is verified by
+running it: `score` has been exercised on real two-chain complexes with
+DAlphaBall and DSSP active, and the placement-geometry output reproduces the
+reference implementation it was refactored from, to all printed decimals.
 
 ## Relationship to BindCraft
 

@@ -35,11 +35,12 @@ rosetta:
   relax_repeats: 1
   relax_max_iter: 100
   relax_backbone: false      # chi-only: repack side chains, keep the predicted backbone
-  interface: A_B
+  # interface is derived from `chains` above (A_B here); it never has to be
+  # repeated, and a value disagreeing with `chains` is rejected at load time.
 
 geometry:
   interface_cutoff: 4.0      # Å, heavy-atom distance defining an interface residue
-  prerelax_clash_cutoff: 2.4
+  prerelax_clash_cutoff: 2.4 # Å, inter-chain heavy-atom contact counted as a clash
 
 # ── Hard filters ─────────────────────────────────────────────────────────────
 # Reported by `binderscope rank` and used as the dashboard's initial filter

@@ -11,7 +11,7 @@ from typing import Any
 
 from Bio.PDB import PDBParser
 
-from .config import Config, RosettaOptions
+from .config import Config, GeometryOptions, RosettaOptions
 from .geometry import count_interchain_clashes
 from .interface import (
     HYDROPHOBIC,
@@ -58,7 +58,12 @@ class InterfaceScorer:
     scorer instance is reused across all designs in a run.
     """
 
-    def __init__(self, options: RosettaOptions, binder_chain: str = "B"):
+    def __init__(
+        self,
+        options: RosettaOptions,
+        geometry: GeometryOptions | None = None,
+        binder_chain: str = "B",
+    ):
         try:
             import pyrosetta
         except ImportError as exc:  # pragma: no cover - depends on environment
@@ -69,6 +74,7 @@ class InterfaceScorer:
 
         self._pyrosetta = pyrosetta
         self.options = options
+        self.geometry = geometry or GeometryOptions()
         self.binder_chain = binder_chain
 
         beta = "true" if options.score_function == "beta_nov16" else "false"
@@ -85,6 +91,7 @@ class InterfaceScorer:
         pyrosetta.init(" ".join(flags))
 
         self.score_function = pyrosetta.get_fa_scorefxn()
+        self.buns_unavailable_reason: str | None = None
         self._relax = self._build_relax()
         self._buns_filter, self.use_dalphaball = self._build_buns()
 
@@ -103,14 +110,32 @@ class InterfaceScorer:
         return relax
 
     def _build_buns(self):
+        """Build the BuriedUnsatHbonds filter, or explain why it is unavailable.
+
+        The fallback used to be silent, which hid a wrong call signature behind
+        plausible-looking numbers from a different estimator. Any failure is
+        now recorded in ``buns_unavailable_reason`` and reported by the caller.
+        """
         from pyrosetta.rosetta.protocols.rosetta_scripts import XmlObjects
 
         if not self.options.dalphaball:
+            self.buns_unavailable_reason = "no dalphaball binary configured"
             return None, False
+
+        if not Path(self.options.dalphaball).is_file():
+            self.buns_unavailable_reason = (
+                f"dalphaball binary not found at {self.options.dalphaball}"
+            )
+            return None, False
+
         try:
             xml = _BUNS_XML.format(weights=self.options.score_function)
-            return XmlObjects.static_get_filter(xml, "buns"), True
-        except Exception:
+            # Note: static_get_filter() takes the XML text alone — passing a
+            # filter name as a second argument raises TypeError. Going through
+            # XmlObjects keeps the configured score function meaningful.
+            return XmlObjects.create_from_string(xml).get_filter("buns"), True
+        except Exception as exc:
+            self.buns_unavailable_reason = f"{type(exc).__name__}: {exc}"
             return None, False
 
     # ── scoring ──────────────────────────────────────────────────────────────
@@ -125,7 +150,16 @@ class InterfaceScorer:
 
         pdb_file = str(pdb_file)
         model = PDBParser(QUIET=True).get_structure("tmp", pdb_file)[0]
-        clashes_pre_relax = count_interchain_clashes(model)
+        if self.binder_chain not in model:
+            raise ValueError(
+                f"binder chain '{self.binder_chain}' not found in {pdb_file}"
+            )
+        binder_len = sum(
+            1 for r in model[self.binder_chain] if r.get_id()[0] == " "
+        )
+        clashes_pre_relax = count_interchain_clashes(
+            model, threshold=self.geometry.prerelax_clash_cutoff
+        )
 
         pose = self._pyrosetta.pose_from_pdb(pdb_file)
         self._relax.apply(pose)
@@ -156,6 +190,7 @@ class InterfaceScorer:
             pdb_file,
             target_chain=target_chain,
             binder_chain=self.binder_chain,
+            cutoff=self.geometry.interface_cutoff,
         )
         n_iface = len(iface) or 1
 
@@ -188,6 +223,8 @@ class InterfaceScorer:
         )
 
         metrics: dict[str, Any] = {
+            # Always reported, so a run without a reversion stage still gets it.
+            "binder_len": binder_len,
             "clashes_pre_relax": clashes_pre_relax,
             "dG": dG,
             "dSASA": dSASA,
@@ -225,4 +262,8 @@ class InterfaceScorer:
 
 
 def build_scorer(config: Config) -> InterfaceScorer:
-    return InterfaceScorer(config.rosetta, binder_chain=config.binder_chain)
+    return InterfaceScorer(
+        config.rosetta,
+        geometry=config.geometry,
+        binder_chain=config.binder_chain,
+    )

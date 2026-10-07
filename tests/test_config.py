@@ -90,6 +90,47 @@ def test_unsupported_filter_operator_is_rejected(tmp_path):
         load_config(write(tmp_path, data))
 
 
+def test_interface_is_derived_from_the_chains(tmp_path):
+    data = dict(MINIMAL)
+    data["chains"] = {"target": "C", "binder": "D"}
+    config = load_config(write(tmp_path, data))
+    assert config.rosetta.interface == "C_D"
+
+
+def test_interface_disagreeing_with_the_chains_is_rejected(tmp_path):
+    # Would otherwise have InterfaceAnalyzerMover score chains that are absent.
+    data = dict(MINIMAL)
+    data["chains"] = {"target": "C", "binder": "D"}
+    data["rosetta"] = {"interface": "A_B"}
+    with pytest.raises(ConfigError, match="rosetta.interface is 'A_B'"):
+        load_config(write(tmp_path, data))
+
+
+def test_interface_agreeing_with_the_chains_is_accepted(tmp_path):
+    data = dict(MINIMAL)
+    data["rosetta"] = {"interface": "A_B"}
+    assert load_config(write(tmp_path, data)).rosetta.interface == "A_B"
+
+
+def test_reversion_strategy_defaults_to_truncate(tmp_path):
+    assert load_config(write(tmp_path, MINIMAL)).reversion_strategy == "truncate"
+
+
+def test_unknown_reversion_strategy_is_rejected(tmp_path):
+    data = dict(MINIMAL)
+    data["reversion_strategy"] = "magic"
+    with pytest.raises(ConfigError, match="reversion_strategy must be one of"):
+        load_config(write(tmp_path, data))
+
+
+def test_reversion_strategy_under_pymol_is_rejected(tmp_path):
+    # It used to be read from there, which made no sense and was easy to miss.
+    data = dict(MINIMAL)
+    data["pymol"] = {"reversion_strategy": "donor"}
+    with pytest.raises(ConfigError, match="belongs at the top level"):
+        load_config(write(tmp_path, data))
+
+
 def test_reference_requires_structure_and_chain(tmp_path):
     data = dict(MINIMAL)
     data["reference"] = {"target_chain": "D"}
@@ -104,6 +145,21 @@ def test_shipped_configs_are_valid(filename):
     config = load_config(CONFIG_DIR / filename)
     assert config.name
     assert config.rank_metrics
+
+
+def test_geometry_options_reach_the_scorer():
+    # The scorer used to be built with RosettaOptions alone, so every
+    # documented geometry threshold was silently ignored.
+    import inspect
+
+    from binderscope.rosetta import InterfaceScorer, build_scorer
+
+    assert "geometry" in inspect.signature(InterfaceScorer.__init__).parameters
+    assert "geometry=config.geometry" in inspect.getsource(build_scorer)
+
+    source = inspect.getsource(InterfaceScorer.score)
+    assert "self.geometry.prerelax_clash_cutoff" in source
+    assert "self.geometry.interface_cutoff" in source
 
 
 def test_engineered_template_exercises_the_full_schema():

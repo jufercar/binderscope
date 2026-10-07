@@ -12,9 +12,9 @@ type: software
 version: 0.1.0
 date-released: "2026-10-07"
 license: MIT
-repository-code: https://github.com/jcarrillo/binderscope
+repository-code: https://github.com/jufercar/binderscope
 authors:
-  - family-names: Carrillo
+  - family-names: Fernández-Carrillo
     given-names: Juan
     email: juanfc1995@gmail.com
     # orcid: "https://orcid.org/0000-0000-0000-0000"
