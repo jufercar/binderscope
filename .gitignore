@@ -6,8 +6,13 @@ build/
 dist/
 .venv/
 venv/
+env/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -37,7 +42,21 @@ sequences.fasta
 # that generated outputs (demo_ranked.csv and friends) stay ignored.
 !examples/demo_metrics.csv
 !examples/demo_dashboard.html
-!tests/fixtures/*.pdb
+
+# Secrets. Nothing here reads environment variables, but an untracked .env is
+# the kind of file that shows up later and should never be committed.
+.env
+.env.*
+
+# Editors and IDEs
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-*
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
+Thumbs.db
