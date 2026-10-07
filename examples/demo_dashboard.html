@@ -1,0 +1,531 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>demo — binder design triage</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+:root{
+  --bg:#0f172a;--panel:#1e293b;--card:#0f2744;--accent:#38bdf8;
+  --green:#4ade80;--red:#f87171;--yellow:#fbbf24;
+  --text:#e2e8f0;--muted:#64748b;--border:#334155;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;font-size:16px;
+     display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#hdr{background:var(--panel);padding:10px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+#hdr h1{font-size:22px;color:var(--accent)}
+#hdr p{color:var(--muted);font-size:14px;margin-top:2px}
+#main{display:flex;gap:10px;padding:10px;flex:1;min-height:0}
+#sidebar{width:290px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;min-height:0}
+.scard{background:var(--panel);border:1px solid var(--border);border-radius:8px;
+       display:flex;flex-direction:column;min-height:0}
+.scard-hdr{padding:7px 12px;background:var(--card);font-weight:700;font-size:13px;
+           color:var(--accent);letter-spacing:.06em;text-transform:uppercase;
+           border-bottom:1px solid var(--border);flex-shrink:0;border-radius:8px 8px 0 0}
+.scard-body{padding:10px;overflow-y:auto;flex:1}
+.scard-foot{padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0}
+.fr{display:grid;grid-template-columns:18px 1fr 42px 68px;gap:5px;align-items:center;margin-bottom:6px}
+.fr label{color:var(--muted);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.fr select,.fr input[type=text]{
+  background:#0a1929;border:1px solid var(--border);color:var(--text);
+  border-radius:4px;padding:4px 6px;font-size:14px;width:100%}
+.fr input[type=checkbox]{accent-color:var(--accent)}
+.btns{display:flex;gap:6px}
+.btn{padding:5px 12px;border:none;border-radius:5px;cursor:pointer;font-size:15px;font-weight:700}
+.bp{background:var(--accent);color:#000}.bs{background:var(--border);color:var(--text)}
+#fcount{font-size:14px;color:var(--muted);margin-top:6px}
+#fcount span{color:var(--green);font-weight:700}
+.chip{display:inline-flex;align-items:center;gap:3px;background:#0a1929;
+      border:1px solid var(--border);border-radius:10px;padding:4px 10px;
+      cursor:pointer;font-size:13px;margin:2px;user-select:none}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+.chip input{accent-color:var(--accent);margin:0;pointer-events:none}
+#rpanel{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:8px;
+        display:flex;flex-direction:column;min-height:0}
+#rpanel-hdr{padding:7px 14px;background:var(--card);font-weight:700;font-size:12px;
+            color:var(--accent);letter-spacing:.06em;text-transform:uppercase;
+            border-bottom:1px solid var(--border);flex-shrink:0;border-radius:8px 8px 0 0}
+#rplot{flex:1;min-height:0}
+#tsec{background:var(--panel);border:1px solid var(--border);border-radius:8px;
+      margin:0 10px 10px;flex-shrink:0;display:flex;flex-direction:column;height:38vh}
+#tbar{display:flex;align-items:center;gap:8px;padding:7px 12px;
+      border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#tbar input{background:#0a1929;border:1px solid var(--border);color:var(--text);
+            border-radius:4px;padding:5px 9px;font-size:15px;width:220px}
+#tbar span{font-size:14px;color:var(--muted)}
+#ctog{display:flex;flex-wrap:wrap;gap:3px;padding:5px 12px;
+      border-bottom:1px solid var(--border);max-height:72px;overflow-y:auto;flex-shrink:0}
+.cb{padding:2px 8px;border-radius:8px;background:#0a1929;border:1px solid var(--border);
+    color:var(--muted);cursor:pointer;font-size:13px}
+.cb.on{border-color:var(--accent);color:var(--accent)}
+#twrap{overflow:auto;flex:1}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{background:var(--card);position:sticky;top:0;z-index:2;padding:6px 10px;text-align:left;
+   cursor:pointer;white-space:nowrap;border-bottom:1px solid var(--border);
+   color:var(--muted);user-select:none;font-size:15px}
+th:hover{color:var(--accent)}
+th.sa::after{content:' ↑';color:var(--accent)}
+th.sd::after{content:' ↓';color:var(--accent)}
+td{padding:7px 10px;border-bottom:1px solid #1e293b;white-space:nowrap;
+   max-width:200px;overflow:hidden;text-overflow:ellipsis}
+tr.sel td{background:rgba(56,189,248,.08)}
+tr:hover td{background:rgba(255,255,255,.025)}
+td.ok{color:var(--green)}td.no{color:var(--red)}
+#tab-nav{margin-top:7px;display:flex;gap:4px}
+.tab-btn{background:var(--panel);border:1px solid var(--border);color:var(--muted);
+  padding:4px 16px;border-radius:5px 5px 0 0;cursor:pointer;font-size:14px;font-weight:700;
+  transition:color .15s,border-color .15s}
+.tab-btn.active{background:var(--card);border-bottom-color:var(--card);color:var(--accent)}
+.tab-btn:hover:not(.active){color:var(--text)}
+#tab-explorer{display:none;flex-direction:column;flex:1;min-height:0}
+#tab-ranking{display:none;flex-direction:column;flex:1;min-height:0;padding:10px;gap:8px;overflow:hidden}
+#tab-contexto{display:flex;flex:1;overflow-y:auto;padding:16px;flex-direction:column;gap:12px}
+.ctx-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px}
+.ctx-card h3{color:var(--accent);margin-bottom:10px;font-size:13px;text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+.ctx-card p,.ctx-card li{color:var(--muted);font-size:13px;line-height:1.7}
+.ctx-card ol{padding-left:18px;margin-top:6px}
+.ctx-card ol li{margin-bottom:4px}
+.ctx-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+.ctx-table th{background:var(--card);padding:5px 10px;text-align:left;color:var(--muted);font-size:12px;border-bottom:1px solid var(--border);white-space:nowrap}
+.ctx-table td{padding:5px 10px;border-bottom:1px solid #1e293b;color:var(--text)}
+.ctx-table tr:last-child td{border-bottom:none}
+.seg1{color:#38bdf8}.seg2{color:#4ade80}.seg3{color:#f472b6}.lnk{color:var(--yellow)}
+.chain-diagram{font-family:monospace;background:var(--card);border-radius:6px;padding:12px;font-size:13px;margin:10px 0;line-height:2}
+code{background:#0a1929;padding:1px 5px;border-radius:3px;font-size:12px;color:#94a3b8}
+#rank-bar{background:var(--panel);border:1px solid var(--border);border-radius:8px;flex:0 0 320px;min-height:200px}
+#rank-wrap{background:var(--panel);border:1px solid var(--border);border-radius:8px;flex:1;overflow:auto;min-height:0}
+#rank-wrap table{width:100%;border-collapse:collapse;font-size:13px}
+#rank-wrap th{background:var(--card);position:sticky;top:0;z-index:2;padding:5px 8px;
+  text-align:left;border-bottom:1px solid var(--border);color:var(--muted);white-space:nowrap;
+  cursor:pointer;user-select:none;font-size:12px}
+#rank-wrap th:hover{color:var(--accent)}
+#rank-wrap td{padding:5px 8px;border-bottom:1px solid #1e293b;white-space:nowrap;font-size:13px}
+</style>
+</head>
+<body>
+<div id="hdr">
+  <h1>demo — binder design triage</h1>
+  <p id="hs">60 designs · run demo · PyRosetta interface metrics</p>
+  <div id="tab-nav">
+    <button class="tab-btn active" id="btn-contexto" onclick="switchTab('contexto')">Context</button>
+    <button class="tab-btn" id="btn-explorer" onclick="switchTab('explorer')">Explorer</button>
+    <button class="tab-btn" id="btn-ranking" onclick="switchTab('ranking')">Ranking</button>
+  </div>
+</div>
+<div id="tab-explorer">
+<div id="main">
+  <div id="sidebar">
+    <div class="scard" style="flex:2">
+      <div class="scard-hdr">Filters</div>
+      <div class="scard-body" id="fctrl"></div>
+      <div class="scard-foot">
+        <div class="btns">
+          <button class="btn bp" onclick="applyF()">Apply</button>
+          <button class="btn bs" onclick="resetF()">Reset</button>
+        </div>
+        <div id="fcount">Mostrando <span id="pc">—</span> / <span id="tc">—</span> diseños</div>
+      </div>
+    </div>
+    <div class="scard" style="flex:1">
+      <div class="scard-hdr">Ejes del radar</div>
+      <div class="scard-body" id="axctrl"></div>
+      <div class="scard-foot">
+        <div class="btns">
+          <button class="btn bp" onclick="renderRadar(false)" style="flex:1">↺ Radar</button>
+          <button class="btn bs" onclick="clearSel()">✕ Sel</button>
+        </div>
+        <div style="margin-top:5px;font-size:13px;color:var(--muted)" id="selcount">0 seleccionados</div>
+      </div>
+    </div>
+  </div>
+  <div id="rpanel">
+    <div id="rpanel-hdr">Radar — valores normalizados [0–1], 1 = mejor. Clic en fila → añadir al radar</div>
+    <div id="rplot"></div>
+  </div>
+</div>
+<div id="tsec">
+  <div id="tbar">
+    <b style="color:var(--accent);font-size:15px">Tabla</b>
+    <input type="text" id="srch" placeholder="Buscar diseño…" oninput="applyF()">
+    <span id="selcount2">0 seleccionados para radar</span>
+    <button class="btn bp" onclick="downloadFasta()" title="FASTA de diseños filtrados o seleccionados">⬇ FASTA</button>
+  </div>
+  <div id="ctog"></div>
+  <div id="twrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+</div>
+</div><!-- /tab-explorer -->
+
+<div id="tab-ranking">
+  <div style="display:flex;gap:8px;flex:0 0 330px;min-height:0">
+    <div id="rank-bar" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:8px"></div>
+    <div id="rank-radar" style="width:520px;flex-shrink:0;background:var(--panel);border:1px solid var(--border);border-radius:8px"></div>
+  </div>
+  <div id="rank-wrap"><table><thead id="rank-thead"></thead><tbody id="rank-tbody"></tbody></table></div>
+</div>
+
+<div id="tab-contexto">
+
+<div class="ctx-card" style="background:rgba(56,189,248,0.07);border-color:#38bdf8;margin-bottom:4px">
+  <p style="color:var(--text);font-size:14px;line-height:1.7">Use the <b style="color:var(--accent)">Explorer</b> tab to filter designs, compare them on the radar and export FASTA. Use <b style="color:var(--accent)">Ranking</b> for the multi-criteria ranking with a per-metric contribution radar.</p>
+</div>
+
+  <div class="ctx-card">
+    <h3>Run: demo</h3>
+    <p>Synthetic sample data illustrating the ranking and dashboard stages. Values are randomly generated with realistic correlations and carry no biological meaning.
+</p><p><b>Designs analysed:</b> 60</p><p><b>Target chain:</b> A &nbsp;·&nbsp; <b>Binder chain:</b> B</p>
+  </div>
+  <div class="ctx-card">
+    <h3>Pipeline</h3>
+    <ol><li>Load the BindCraft complex (target chain + designed binder).</li><li><b>PyRosetta:</b> chi-only FastRelax &rarr; InterfaceAnalyzerMover &rarr; BuriedUnsatHbonds (DAlphaBall) &rarr; total energy, SASA and layer metrics.</li></ol>
+  </div>
+  <div class="ctx-card">
+    <h3>Multi-criteria ranking</h3>
+    <p>Each metric is min-max normalised to [0&ndash;1] in its own good direction and multiplied by its weight; the score is the sum. Maximum possible score: <b>15.5</b>. Weights encode priorities and live in the config file.</p><p>Rows are kept for ranking only when <code>dG &lt; 0</code>, so artefacts do not stretch the normalisation scale.</p><table class="ctx-table"><thead><tr><th>Metric</th><th>Weight</th><th>Dir.</th><th>Meaning</th></tr></thead><tbody><tr><td><b>dG</b></td><td>&times;2</td><td>&darr;</td><td>Interface free energy (kcal/mol)</td></tr><tr><td><b>SC</b></td><td>&times;2</td><td>&uarr;</td><td>Shape complementarity</td></tr><tr><td><b>i_pTM</b></td><td>&times;2</td><td>&uarr;</td><td>Interface predicted TM-score</td></tr><tr><td><b>ipSAE</b></td><td>&times;2</td><td>&uarr;</td><td>Interface predicted aligned error</td></tr><tr><td><b>dSASA</b></td><td>&times;1.5</td><td>&uarr;</td><td>Buried surface area</td></tr><tr><td><b>packstat</b></td><td>&times;1.5</td><td>&uarr;</td><td>Interface packing quality</td></tr><tr><td><b>BUNS</b></td><td>&times;1.5</td><td>&darr;</td><td>Buried unsatisfied hydrogen bonds</td></tr><tr><td><b>H-bonds</b></td><td>&times;1</td><td>&uarr;</td><td>Interface hydrogen bonds</td></tr><tr><td><b>surf_hydro</b></td><td>&times;1</td><td>&darr;</td><td>Hydrophobic fraction of the binder surface</td></tr><tr><td><b>binder_pLDDT</b></td><td>&times;1</td><td>&uarr;</td><td>Mean binder pLDDT</td></tr></tbody></table>
+  </div>
+
+</div>
+
+<script>
+const DATA   = [{"design": "demo_l141_s935477_mpnn4_model1", "binder_len": 141, "dG": 5.8386, "dSASA": 673.1699, "dG_dSASA_ratio": 0.8673, "sc": 0.4897, "packstat": 0.5001, "n_hbonds": 1.0, "hbond_pct": 7.6923, "unsat_hbonds": 6.0, "unsat_hbonds_pct": 46.1538, "n_interface_res": 13.0, "interface_hydro": 52.6166, "interface_sasa_pct": 7.2195, "binder_score": -289.0107, "binder_sasa": 9324.3031, "surface_hydro": 0.3201, "binder_helix_pct": 25.9395, "clashes_pre_relax": 9.0, "Average_i_pTM": 0.377, "Average_ipSAE": 0.284, "Average_pLDDT": 0.6219, "Average_Binder_pLDDT": 0.7021, "Sequence": "VHPKNRISSYKFMDMAHDVEAFPGPVMTPCQNRMGYKSDGQRANKKRHVKCYIATATDVPMGRAYMLIISVYTAVEECYLDGVDHHQVAGHPVDFWVPLMAMYPFVSPNQKSCTPCVPIWQPKYDRNEMRIALVQRGTQYS"}, {"design": "demo_l136_s104672_mpnn8_model5", "binder_len": 136, "dG": -18.6421, "dSASA": 789.2033, "dG_dSASA_ratio": -2.3621, "sc": 0.5604, "packstat": 0.5478, "n_hbonds": 3.0, "hbond_pct": 21.4286, "unsat_hbonds": 6.0, "unsat_hbonds_pct": 42.8571, "n_interface_res": 14.0, "interface_hydro": 54.7749, "interface_sasa_pct": 8.1092, "binder_score": -315.888, "binder_sasa": 9732.1861, "surface_hydro": 0.2422, "binder_helix_pct": 26.2557, "clashes_pre_relax": 3.0, "Average_i_pTM": 0.4682, "Average_ipSAE": 0.3788, "Average_pLDDT": 0.7029, "Average_Binder_pLDDT": 0.7833, "Sequence": "SGLMAWMCFHVHLRNSWNFSWEGDPPYEHKNVPWCDYMIRVKYYSRDWITVNTCQAHFVKAMYVHHWQKFYPFNVAISNHVKHWTLLITAWMVDNPETKSMHVKMHGLLGPKAILKEDARVNQCPMEHNWDTRIGH"}, {"design": "demo_l128_s546483_mpnn13_model2", "binder_len": 128, "dG": -34.9815, "dSASA": 1677.7601, "dG_dSASA_ratio": -2.085, "sc": 0.6725, "packstat": 0.7213, "n_hbonds": 10.0, "hbond_pct": 47.619, "unsat_hbonds": 1.0, "unsat_hbonds_pct": 4.7619, "n_interface_res": 21.0, "interface_hydro": 48.3066, "interface_sasa_pct": 19.366, "binder_score": -199.0673, "binder_sasa": 8663.4207, "surface_hydro": 0.2944, "binder_helix_pct": 69.4923, "clashes_pre_relax": -0.0, "Average_i_pTM": 0.7987, "Average_ipSAE": 0.5825, "Average_pLDDT": 0.842, "Average_Binder_pLDDT": 0.8398, "Sequence": "YKINKGMSGWLWKDMSGYVIRLWYLMRRFHISEMHVFRFCWPHADCQWVRCPETNVISVVWRMYEYYRFFIMTHHLTPGHAMNCYKDPSDKNFQPEMGEYRSQCKPNAWFVYRFESMEMGKVPLATGI"}, {"design": "demo_l141_s300449_mpnn7_model2", "binder_len": 141, "dG": -26.5809, "dSASA": 1598.5729, "dG_dSASA_ratio": -1.6628, "sc": 0.6642, "packstat": 0.6875, "n_hbonds": 7.0, "hbond_pct": 38.8889, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 22.2222, "n_interface_res": 18.0, "interface_hydro": 64.5794, "interface_sasa_pct": 16.2991, "binder_score": -270.2455, "binder_sasa": 9807.741, "surface_hydro": 0.2156, "binder_helix_pct": 55.5107, "clashes_pre_relax": 0.0, "Average_i_pTM": 0.7055, "Average_ipSAE": 0.5703, "Average_pLDDT": 0.8136, "Average_Binder_pLDDT": 0.8054, "Sequence": "DSMYRQTMQQIWDRLTALGGWDRICHTTMTFIFGVNCDDAQFISKQMHVVFLGDRTYPIASCYTCSSCGEFDNSWEIESVIIDRPYCKKTMSHLSATQLPDKRCHFWPHLLNHFGVFTWIRWDSLWPVTGTSVYWAAYRDI"}, {"design": "demo_l78_s660401_mpnn8_model4", "binder_len": 78, "dG": -22.0546, "dSASA": 1259.6399, "dG_dSASA_ratio": -1.7509, "sc": 0.6469, "packstat": 0.4922, "n_hbonds": 11.0, "hbond_pct": 91.6667, "unsat_hbonds": 5.0, "unsat_hbonds_pct": 41.6667, "n_interface_res": 12.0, "interface_hydro": 46.8756, "interface_sasa_pct": 20.1266, "binder_score": -138.0719, "binder_sasa": 6258.5793, "surface_hydro": 0.3297, "binder_helix_pct": 59.9087, "clashes_pre_relax": 5.0, "Average_i_pTM": 0.5947, "Average_ipSAE": 0.5126, "Average_pLDDT": 0.7794, "Average_Binder_pLDDT": 0.7663, "Sequence": "KHQTCAAMYVWLEGHNMGYWWECTVVAKWRKHPEARLPHNFFDTYTWFVRITDNQNHTTSGYWVSESTGPEPITFTTH"}, {"design": "demo_l116_s444708_mpnn9_model3", "binder_len": 116, "dG": -17.292, "dSASA": 980.2577, "dG_dSASA_ratio": -1.764, "sc": 0.5572, "packstat": 0.5195, "n_hbonds": 6.0, "hbond_pct": 46.1538, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 30.7692, "n_interface_res": 13.0, "interface_hydro": 46.0629, "interface_sasa_pct": 11.5152, "binder_score": -227.418, "binder_sasa": 8512.7001, "surface_hydro": 0.3217, "binder_helix_pct": 64.6523, "clashes_pre_relax": 2.0, "Average_i_pTM": 0.6491, "Average_ipSAE": 0.4961, "Average_pLDDT": 0.7363, "Average_Binder_pLDDT": 0.7667, "Sequence": "QVEGLNTGIIPVCNFTYDNDHMIDETSNRNCRYTKHGEGLWKDLMDDNSKRIFPNARPGVAAYNKGFMDGQMVPTGCQLTKIIPFKTNIKMDVKDPRPQALETGRINYEHQSGYLR"}, {"design": "demo_l79_s561311_mpnn7_model5", "binder_len": 79, "dG": -40.5928, "dSASA": 1455.6217, "dG_dSASA_ratio": -2.7887, "sc": 0.7317, "packstat": 0.678, "n_hbonds": 8.0, "hbond_pct": 38.0952, "unsat_hbonds": 3.0, "unsat_hbonds_pct": 14.2857, "n_interface_res": 21.0, "interface_hydro": 53.1949, "interface_sasa_pct": 21.7578, "binder_score": -142.1161, "binder_sasa": 6690.1025, "surface_hydro": 0.2676, "binder_helix_pct": 71.4568, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.8261, "Average_ipSAE": 0.7299, "Average_pLDDT": 0.9154, "Average_Binder_pLDDT": 0.8275, "Sequence": "HESESQSDFKPYCMQHEGANHKDKWCEYEKIDYAVMHMRERKSAYHLYFLMRMNHHTGWLYRMESVMTARPFLIIMDFC"}, {"design": "demo_l143_s307802_mpnn4_model5", "binder_len": 143, "dG": -24.1339, "dSASA": 1333.3434, "dG_dSASA_ratio": -1.81, "sc": 0.6686, "packstat": 0.6409, "n_hbonds": 9.0, "hbond_pct": 52.9412, "unsat_hbonds": 5.0, "unsat_hbonds_pct": 29.4118, "n_interface_res": 17.0, "interface_hydro": 60.4941, "interface_sasa_pct": 13.4423, "binder_score": -280.3028, "binder_sasa": 9918.9771, "surface_hydro": 0.2902, "binder_helix_pct": 51.3059, "clashes_pre_relax": 5.0, "Average_i_pTM": 0.6563, "Average_ipSAE": 0.6816, "Average_pLDDT": 0.7142, "Average_Binder_pLDDT": 0.7786, "Sequence": "YPYWCTAHPHWWIFLPPNRLRHSWHVMVPETGVTCMCGGDTAKFLKARPHVPQKTNIIQYLPTGFEWWDCMQQFDIWRQEQVESNCLLVTKNWSTTSWHNANLQRGFKWEYYKVHAAPVGDVYCWGHRDTHWCANEWEPPRFH"}, {"design": "demo_l148_s939109_mpnn4_model2", "binder_len": 148, "dG": -28.48, "dSASA": 1367.8056, "dG_dSASA_ratio": -2.0822, "sc": 0.644, "packstat": 0.6708, "n_hbonds": 6.0, "hbond_pct": 40.0, "unsat_hbonds": 6.0, "unsat_hbonds_pct": 40.0, "n_interface_res": 15.0, "interface_hydro": 49.4545, "interface_sasa_pct": 13.9105, "binder_score": -260.356, "binder_sasa": 9832.9013, "surface_hydro": 0.2941, "binder_helix_pct": 54.9247, "clashes_pre_relax": 2.0, "Average_i_pTM": 0.6403, "Average_ipSAE": 0.5379, "Average_pLDDT": 0.8451, "Average_Binder_pLDDT": 0.7964, "Sequence": "ESNWPADCGEHSRCHACNLMAKQLPDHVMYICHSSWKKVHPRDDYSAWTEHKKWWNQFQYITFRESVICHSRTKSKPLVYMCPWIIRSAEPMFHKDTRFRIFLNFMGWCCYWYFESICVKTKAMKHYQNFQFEDDCDCRRDLRKENDE"}, {"design": "demo_l83_s641044_mpnn1_model3", "binder_len": 83, "dG": -29.2113, "dSASA": 1151.2534, "dG_dSASA_ratio": -2.5374, "sc": 0.6274, "packstat": 0.5492, "n_hbonds": 6.0, "hbond_pct": 37.5, "unsat_hbonds": 3.0, "unsat_hbonds_pct": 18.75, "n_interface_res": 16.0, "interface_hydro": 50.2441, "interface_sasa_pct": 15.9934, "binder_score": -179.2233, "binder_sasa": 7198.3121, "surface_hydro": 0.2837, "binder_helix_pct": 64.729, "clashes_pre_relax": 3.0, "Average_i_pTM": 0.6334, "Average_ipSAE": 0.504, "Average_pLDDT": 0.7582, "Average_Binder_pLDDT": 0.8512, "Sequence": "FYYCCVQDTDQSMEDNWHCHLGMAGGGGWPEAHKYHKTGWIAVAGLWSTLEQSMRCWTCKRKDYNKRHVGFTFRETLMGSQVV"}, {"design": "demo_l82_s735776_mpnn20_model1", "binder_len": 82, "dG": -33.4235, "dSASA": 1387.2308, "dG_dSASA_ratio": -2.4094, "sc": 0.5971, "packstat": 0.6302, "n_hbonds": 9.0, "hbond_pct": 47.3684, "unsat_hbonds": 3.0, "unsat_hbonds_pct": 15.7895, "n_interface_res": 19.0, "interface_hydro": 57.341, "interface_sasa_pct": 19.4832, "binder_score": -170.2478, "binder_sasa": 7120.1409, "surface_hydro": 0.2666, "binder_helix_pct": 41.7547, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.626, "Average_ipSAE": 0.5907, "Average_pLDDT": 0.7397, "Average_Binder_pLDDT": 0.8678, "Sequence": "MTRSTYFVVPRITLVPPPKERISIRINSMAAIQSHTMPPGNIPYLNEWNGWRVNYPHMKGWNITSQCEMVYWQIFAKYHCLP"}, {"design": "demo_l110_s478353_mpnn1_model3", "binder_len": 110, "dG": -13.9356, "dSASA": 804.3628, "dG_dSASA_ratio": -1.7325, "sc": 0.5242, "packstat": 0.4573, "n_hbonds": 3.0, "hbond_pct": 30.0, "unsat_hbonds": 7.0, "unsat_hbonds_pct": 70.0, "n_interface_res": 10.0, "interface_hydro": 38.1839, "interface_sasa_pct": 9.9636, "binder_score": -192.3075, "binder_sasa": 8073.038, "surface_hydro": 0.3285, "binder_helix_pct": 57.3781, "clashes_pre_relax": 3.0, "Average_i_pTM": 0.3469, "Average_ipSAE": 0.3988, "Average_pLDDT": 0.745, "Average_Binder_pLDDT": 0.7472, "Sequence": "KYKCKDKMTVYIVNDFETTAYTDGAPTIQIWCVAFHAKNMFWWNKERVDEPYFNCNGDDPMAGAKGIPVRIELLAPPDTSVMITAILQRWAQWQPSDWNEMVNAPVPRYY"}, {"design": "demo_l84_s31397_mpnn20_model2", "binder_len": 84, "dG": -17.1332, "dSASA": 1102.4851, "dG_dSASA_ratio": -1.5541, "sc": 0.5588, "packstat": 0.5276, "n_hbonds": 6.0, "hbond_pct": 33.3333, "unsat_hbonds": 6.0, "unsat_hbonds_pct": 33.3333, "n_interface_res": 18.0, "interface_hydro": 47.0356, "interface_sasa_pct": 16.0865, "binder_score": -164.8033, "binder_sasa": 6853.4643, "surface_hydro": 0.3222, "binder_helix_pct": 56.7039, "clashes_pre_relax": 3.0, "Average_i_pTM": 0.5984, "Average_ipSAE": 0.6567, "Average_pLDDT": 0.776, "Average_Binder_pLDDT": 0.7229, "Sequence": "LANAMWLINLTLGWIINWWLPLLECCNGTQFGEKRALHYLLLCSHLEGSACPNPGNPSRTDTWGVFVQAHFCCPKYSTQLTEQG"}, {"design": "demo_l67_s1047_mpnn13_model4", "binder_len": 67, "dG": -36.8394, "dSASA": 1643.2083, "dG_dSASA_ratio": -2.2419, "sc": 0.7122, "packstat": 0.7287, "n_hbonds": 9.0, "hbond_pct": 39.1304, "unsat_hbonds": 2.0, "unsat_hbonds_pct": 8.6957, "n_interface_res": 23.0, "interface_hydro": 59.0522, "interface_sasa_pct": 25.1615, "binder_score": -110.8534, "binder_sasa": 6530.6377, "surface_hydro": 0.3099, "binder_helix_pct": 63.6315, "clashes_pre_relax": 0.0, "Average_i_pTM": 0.7551, "Average_ipSAE": 0.7406, "Average_pLDDT": 0.8808, "Average_Binder_pLDDT": 0.8322, "Sequence": "WSHLEPWASSMPNPVSKNGEDCVCKKFQIEYNMGLERFYQRTGDFALNEFRHYTAHQWEDMIFRNFF"}, {"design": "demo_l119_s897756_mpnn20_model4", "binder_len": 119, "dG": -30.4499, "dSASA": 1692.1211, "dG_dSASA_ratio": -1.7995, "sc": 0.6706, "packstat": 0.6655, "n_hbonds": 11.0, "hbond_pct": 40.7407, "unsat_hbonds": 1.0, "unsat_hbonds_pct": 3.7037, "n_interface_res": 27.0, "interface_hydro": 51.3045, "interface_sasa_pct": 21.7846, "binder_score": -242.3184, "binder_sasa": 7767.4977, "surface_hydro": 0.2481, "binder_helix_pct": 48.1413, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.8236, "Average_ipSAE": 0.6056, "Average_pLDDT": 0.8625, "Average_Binder_pLDDT": 0.8863, "Sequence": "QLLTENVDITLGVSPDFYDPASNECMCYVMVWVMQNAAVCMDCCIIGWAWSTWDNADCMKKCWMVTTMPVNFCEHPTPNQMYVKWGSSCCWHWHIQEILEAYHRGWYWTQRRHCQLWKF"}, {"design": "demo_l128_s80253_mpnn8_model1", "binder_len": 128, "dG": -15.7158, "dSASA": 1014.1536, "dG_dSASA_ratio": -1.5496, "sc": 0.6039, "packstat": 0.4877, "n_hbonds": 2.0, "hbond_pct": 14.2857, "unsat_hbonds": 1.0, "unsat_hbonds_pct": 7.1429, "n_interface_res": 14.0, "interface_hydro": 51.0941, "interface_sasa_pct": 11.788, "binder_score": -269.7639, "binder_sasa": 8603.279, "surface_hydro": 0.3085, "binder_helix_pct": 34.6599, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.5045, "Average_ipSAE": 0.3882, "Average_pLDDT": 0.7685, "Average_Binder_pLDDT": 0.8094, "Sequence": "ANCPCMKMMEPQKNVSQCWVPKERKHHFVRRQYGGDWCPQAEFRVFWWFLLRCKAYMLSNRERMNFWSKGSKCYNASQVKDHCMHIWRAVYNIVMQFDWEFAFTRYYECWGFEIWDKCNYMKKGMENW"}, {"design": "demo_l139_s791830_mpnn12_model2", "binder_len": 139, "dG": -19.1299, "dSASA": 1273.4601, "dG_dSASA_ratio": -1.5022, "sc": 0.6507, "packstat": 0.6248, "n_hbonds": 7.0, "hbond_pct": 50.0, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 28.5714, "n_interface_res": 14.0, "interface_hydro": 45.6257, "interface_sasa_pct": 13.8764, "binder_score": -270.7482, "binder_sasa": 9177.1446, "surface_hydro": 0.2411, "binder_helix_pct": 54.4144, "clashes_pre_relax": 5.0, "Average_i_pTM": 0.7165, "Average_ipSAE": 0.5049, "Average_pLDDT": 0.7567, "Average_Binder_pLDDT": 0.8013, "Sequence": "WDAWSSRIPYYIVIFCAMKMTVENEHWGLGHLKYDSRSWARQRILTTKDVRWSEKQLDADFKDAKYFVWAAFCWRCQSHCADNYPDMHHYKPNMMFPSIIQFQFAHVLCQVRYQKCNHSVGKYPSMSVPHQMNDEHDRW"}, {"design": "demo_l76_s269950_mpnn17_model1", "binder_len": 76, "dG": 5.3603, "dSASA": 1381.6256, "dG_dSASA_ratio": 0.388, "sc": 0.7172, "packstat": 0.6531, "n_hbonds": 10.0, "hbond_pct": 62.5, "unsat_hbonds": 1.0, "unsat_hbonds_pct": 6.25, "n_interface_res": 16.0, "interface_hydro": 50.7835, "interface_sasa_pct": 19.8007, "binder_score": -144.2935, "binder_sasa": 6977.6776, "surface_hydro": 0.2577, "binder_helix_pct": 52.129, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.6797, "Average_ipSAE": 0.5799, "Average_pLDDT": 0.8841, "Average_Binder_pLDDT": 0.8749, "Sequence": "WPSDTPPQLACRRFEFAYYCALSRDFGHKQKNGWQFVQKFPPYDSKRFLWIQFSVHYFHHDGELLDPHMTTPNKVF"}, {"design": "demo_l146_s409541_mpnn6_model4", "binder_len": 146, "dG": -35.5448, "dSASA": 1867.8633, "dG_dSASA_ratio": -1.903, "sc": 0.7129, "packstat": 0.7894, "n_hbonds": 10.0, "hbond_pct": 43.4783, "unsat_hbonds": 2.0, "unsat_hbonds_pct": 8.6957, "n_interface_res": 23.0, "interface_hydro": 43.7971, "interface_sasa_pct": 19.2597, "binder_score": -279.3975, "binder_sasa": 9698.2859, "surface_hydro": 0.2726, "binder_helix_pct": 86.7671, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.8653, "Average_ipSAE": 0.6954, "Average_pLDDT": 0.8555, "Average_Binder_pLDDT": 0.8864, "Sequence": "ASSSPNIMIERSGITNEMDMTQQMNAGEECHWSYHWRKENYENIIDMCMTMMYSWLQCQWVTPFTFQMTGTSSSWPTVDYMSRNTYADPGFKYCLIECSPFAIHNGEIRSKTNLWGIFWWSGYQCDYNKYPKKAKFEVELKLMQPI"}, {"design": "demo_l77_s928954_mpnn11_model5", "binder_len": 77, "dG": -20.8529, "dSASA": 1062.8131, "dG_dSASA_ratio": -1.962, "sc": 0.6328, "packstat": 0.5813, "n_hbonds": 11.0, "hbond_pct": 91.6667, "unsat_hbonds": 6.0, "unsat_hbonds_pct": 50.0, "n_interface_res": 12.0, "interface_hydro": 58.1448, "interface_sasa_pct": 15.7035, "binder_score": -136.73, "binder_sasa": 6767.9935, "surface_hydro": 0.3659, "binder_helix_pct": 52.2359, "clashes_pre_relax": 5.0, "Average_i_pTM": 0.6208, "Average_ipSAE": 0.5026, "Average_pLDDT": 0.7713, "Average_Binder_pLDDT": 0.8071, "Sequence": "YCATLFHPTWMPSWLAVKLHFTMPQLIGISQDFQRPWLYHWQVQRVSDQKTDTTAKWFNVAYRPVRCPHSGGNMWTT"}, {"design": "demo_l74_s310773_mpnn17_model4", "binder_len": 74, "dG": -26.3233, "dSASA": 1243.7878, "dG_dSASA_ratio": -2.1164, "sc": 0.6502, "packstat": 0.6018, "n_hbonds": 7.0, "hbond_pct": 41.1765, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 23.5294, "n_interface_res": 17.0, "interface_hydro": 46.7767, "interface_sasa_pct": 20.0464, "binder_score": -141.377, "binder_sasa": 6204.5373, "surface_hydro": 0.2841, "binder_helix_pct": 71.6606, "clashes_pre_relax": 5.0, "Average_i_pTM": 0.6458, "Average_ipSAE": 0.5649, "Average_pLDDT": 0.7571, "Average_Binder_pLDDT": 0.7717, "Sequence": "WYNADEGWNIWRFEPQEDDGDWMIPSVKQNGRYCCALMWMWLCDCNPFMCMNDKKLFALFCYHVQNSPSWYHPC"}, {"design": "demo_l132_s394863_mpnn14_model3", "binder_len": 132, "dG": -28.8208, "dSASA": 1222.6139, "dG_dSASA_ratio": -2.3573, "sc": 0.7362, "packstat": 0.6382, "n_hbonds": 7.0, "hbond_pct": 35.0, "unsat_hbonds": 6.0, "unsat_hbonds_pct": 30.0, "n_interface_res": 20.0, "interface_hydro": 49.7124, "interface_sasa_pct": 13.5619, "binder_score": -269.1078, "binder_sasa": 9015.0584, "surface_hydro": 0.286, "binder_helix_pct": 81.6282, "clashes_pre_relax": 6.0, "Average_i_pTM": 0.7399, "Average_ipSAE": 0.5457, "Average_pLDDT": 0.8337, "Average_Binder_pLDDT": 0.8376, "Sequence": "MQLWGITLTTGGKYSHEKTKMISAYFALAIWNDWHYKAALPDTFTGEYWHQNIIMCNSQRLRHPWMMKCLGLPFWYQYECQMKMQTQWNTINDFWYLESPFCVMGGMFEERCLRQDAYCVALKESGPRCLVF"}, {"design": "demo_l135_s5966_mpnn17_model1", "binder_len": 135, "dG": -20.2753, "dSASA": 1259.2112, "dG_dSASA_ratio": -1.6102, "sc": 0.6892, "packstat": 0.5765, "n_hbonds": 8.0, "hbond_pct": 44.4444, "unsat_hbonds": 5.0, "unsat_hbonds_pct": 27.7778, "n_interface_res": 18.0, "interface_hydro": 51.0111, "interface_sasa_pct": 13.2937, "binder_score": -215.8821, "binder_sasa": 9472.2344, "surface_hydro": 0.3097, "binder_helix_pct": 51.6945, "clashes_pre_relax": 8.0, "Average_i_pTM": 0.6556, "Average_ipSAE": 0.486, "Average_pLDDT": 0.6871, "Average_Binder_pLDDT": 0.7309, "Sequence": "CNHPVEIWPYPLEDIKFQDKWHLNGSYFPWSYMTYGSKRFILQVDDGMSWAPLPYWALCQQGQWFCDPNTRCDWKYAANRWDKKIPMGAQSADDPKPIVIFFSENRTSSQVYTVQKPPGTETVITYWRSHIETLK"}, {"design": "demo_l67_s384558_mpnn17_model4", "binder_len": 67, "dG": -25.4365, "dSASA": 1299.1851, "dG_dSASA_ratio": -1.9579, "sc": 0.6827, "packstat": 0.5644, "n_hbonds": 6.0, "hbond_pct": 26.087, "unsat_hbonds": 2.0, "unsat_hbonds_pct": 8.6957, "n_interface_res": 23.0, "interface_hydro": 49.0863, "interface_sasa_pct": 19.57, "binder_score": -122.8159, "binder_sasa": 6638.6696, "surface_hydro": 0.2657, "binder_helix_pct": 58.1685, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.5257, "Average_ipSAE": 0.475, "Average_pLDDT": 0.764, "Average_Binder_pLDDT": 0.793, "Sequence": "CMGALADVCDRRIPEEAWVSKHEMETYFVHIAYYSEMMAHSDGEQTCRCIFHIQCGLKNFHACPSIV"}, {"design": "demo_l65_s16817_mpnn10_model4", "binder_len": 65, "dG": -25.5064, "dSASA": 1456.9577, "dG_dSASA_ratio": -1.7507, "sc": 0.6816, "packstat": 0.6306, "n_hbonds": 10.0, "hbond_pct": 47.619, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 19.0476, "n_interface_res": 21.0, "interface_hydro": 49.4035, "interface_sasa_pct": 23.9755, "binder_score": -139.9744, "binder_sasa": 6076.8573, "surface_hydro": 0.2459, "binder_helix_pct": 56.9345, "clashes_pre_relax": 0.0, "Average_i_pTM": 0.7617, "Average_ipSAE": 0.5449, "Average_pLDDT": 0.8069, "Average_Binder_pLDDT": 0.7879, "Sequence": "QWGWTPPSVHRQETFTFVVYCEIVYQEREQAEDDERDFYRAYCAGYLQMWLSAQISRGALPCFLG"}, {"design": "demo_l74_s519311_mpnn18_model5", "binder_len": 74, "dG": -23.842, "dSASA": 1241.4463, "dG_dSASA_ratio": -1.9205, "sc": 0.5939, "packstat": 0.5685, "n_hbonds": 3.0, "hbond_pct": 20.0, "unsat_hbonds": 7.0, "unsat_hbonds_pct": 46.6667, "n_interface_res": 15.0, "interface_hydro": 34.9803, "interface_sasa_pct": 17.7294, "binder_score": -109.2341, "binder_sasa": 7002.19, "surface_hydro": 0.3012, "binder_helix_pct": 25.1692, "clashes_pre_relax": 2.0, "Average_i_pTM": 0.6807, "Average_ipSAE": 0.5658, "Average_pLDDT": 0.7248, "Average_Binder_pLDDT": 0.812, "Sequence": "GGYVLIDHVCRKRTRQYAIRDCCLFTILAKKKQDHPWWRKPEVTWGVTSKFNDELHMTNHNKTTKWDGTGQGTF"}, {"design": "demo_l128_s899226_mpnn5_model1", "binder_len": 128, "dG": -19.1103, "dSASA": 841.2696, "dG_dSASA_ratio": -2.2716, "sc": 0.5772, "packstat": 0.542, "n_hbonds": 4.0, "hbond_pct": 28.5714, "unsat_hbonds": 7.0, "unsat_hbonds_pct": 50.0, "n_interface_res": 14.0, "interface_hydro": 38.9917, "interface_sasa_pct": 9.1607, "binder_score": -243.913, "binder_sasa": 9183.4335, "surface_hydro": 0.3572, "binder_helix_pct": 36.6394, "clashes_pre_relax": 9.0, "Average_i_pTM": 0.3691, "Average_ipSAE": 0.4347, "Average_pLDDT": 0.7151, "Average_Binder_pLDDT": 0.6054, "Sequence": "MPNHYIDLTMLTRGEFMHDMIWCLGTILKMSPDMFAMWVYRQTFDGFPPVDVVYPVKDAIYHAEIYQWDCYQCWHMWFNKYPKSCWPEGFTIANYASMVLCYGQWTASQEPCTIENGCRHQLGYAFYV"}, {"design": "demo_l142_s918071_mpnn11_model3", "binder_len": 142, "dG": -30.9669, "dSASA": 1807.182, "dG_dSASA_ratio": -1.7135, "sc": 0.7688, "packstat": 0.6944, "n_hbonds": 7.0, "hbond_pct": 35.0, "unsat_hbonds": 3.0, "unsat_hbonds_pct": 15.0, "n_interface_res": 20.0, "interface_hydro": 52.5601, "interface_sasa_pct": 18.2035, "binder_score": -250.5701, "binder_sasa": 9927.6819, "surface_hydro": 0.2254, "binder_helix_pct": 79.4416, "clashes_pre_relax": 1.0, "Average_i_pTM": 0.781, "Average_ipSAE": 0.8551, "Average_pLDDT": 0.8838, "Average_Binder_pLDDT": 0.8853, "Sequence": "EVTFFNVISMCIGVYTRAHHHMIDEQCSLLRLHDQESQCAVYIYQQEAGKWEHWDKPVHVEENFPVIDKKRHPMNTISVMDFVFCHHDKMYHGPSMTLKRLVGVNKRTARSTGDHHYLLAGLHECSWPLLRTCLKYNYWYLT"}, {"design": "demo_l86_s550880_mpnn7_model1", "binder_len": 86, "dG": -25.4172, "dSASA": 1282.3595, "dG_dSASA_ratio": -1.9821, "sc": 0.6471, "packstat": 0.5952, "n_hbonds": 7.0, "hbond_pct": 43.75, "unsat_hbonds": 2.0, "unsat_hbonds_pct": 12.5, "n_interface_res": 16.0, "interface_hydro": 61.9185, "interface_sasa_pct": 17.3595, "binder_score": -173.6942, "binder_sasa": 7387.0765, "surface_hydro": 0.3362, "binder_helix_pct": 53.8922, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.6545, "Average_ipSAE": 0.568, "Average_pLDDT": 0.6987, "Average_Binder_pLDDT": 0.7272, "Sequence": "WSNAMHLEGQAEYMTHECGHSRCCLQSWCMDCFAFDCNWGSHREYGCLIKGRVQVFGLDECAVWLFWIQKGMAWCKLTSPHMGDMN"}, {"design": "demo_l149_s158458_mpnn9_model5", "binder_len": 149, "dG": -37.3123, "dSASA": 1553.8965, "dG_dSASA_ratio": -2.4012, "sc": 0.6525, "packstat": 0.6832, "n_hbonds": 12.0, "hbond_pct": 66.6667, "unsat_hbonds": 2.0, "unsat_hbonds_pct": 11.1111, "n_interface_res": 18.0, "interface_hydro": 64.1708, "interface_sasa_pct": 15.0664, "binder_score": -276.9846, "binder_sasa": 10313.6502, "surface_hydro": 0.2764, "binder_helix_pct": 64.3479, "clashes_pre_relax": 0.0, "Average_i_pTM": 0.7618, "Average_ipSAE": 0.6971, "Average_pLDDT": 0.8703, "Average_Binder_pLDDT": 0.9627, "Sequence": "FQITQYMCCFGGIKNHIFRWKVSGDWIAIIPRRWFRFFVPLYPWHTYNHHMPNSHTLSTEMNCDCNYENPASRPQDDEFMRENSAPCVVCRSETEVIYEMQDKCSADVMTIESCRFLWVGMMPAKWASQAYKHDAFMYINNLAGWMPEY"}, {"design": "demo_l113_s256345_mpnn8_model3", "binder_len": 113, "dG": -25.2307, "dSASA": 1236.2999, "dG_dSASA_ratio": -2.0408, "sc": 0.6908, "packstat": 0.6866, "n_hbonds": 9.0, "hbond_pct": 50.0, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 22.2222, "n_interface_res": 18.0, "interface_hydro": 52.0517, "interface_sasa_pct": 15.185, "binder_score": -251.4423, "binder_sasa": 8141.5753, "surface_hydro": 0.2735, "binder_helix_pct": 41.529, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.6661, "Average_ipSAE": 0.5812, "Average_pLDDT": 0.8058, "Average_Binder_pLDDT": 0.8513, "Sequence": "PGCWLAQNWHAERRMEHVMYSEFIHTNDSGVINCDTDWLTNTAHDWYTISNFEQTHSYKRVRYKNFEYPKYPIQPCGITSYRNASRHILHDTASKLQFQENWYLGMLWLAEQQ"}, {"design": "demo_l89_s165173_mpnn1_model1", "binder_len": 89, "dG": -29.7455, "dSASA": 1214.4681, "dG_dSASA_ratio": -2.4493, "sc": 0.5919, "packstat": 0.6854, "n_hbonds": 10.0, "hbond_pct": 55.5556, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 22.2222, "n_interface_res": 18.0, "interface_hydro": 55.4002, "interface_sasa_pct": 16.2775, "binder_score": -180.1882, "binder_sasa": 7461.0037, "surface_hydro": 0.2637, "binder_helix_pct": 69.8524, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.6236, "Average_ipSAE": 0.5653, "Average_pLDDT": 0.7084, "Average_Binder_pLDDT": 0.8045, "Sequence": "MLECQDEDSWEMHPTCMDFPHTPAFIHPDRDRNNKCIVHSGQFGYSQIGHSWYGERWEEQLRKRTQGTMKRDQMLHSFNPSFIFSYVFL"}, {"design": "demo_l91_s393055_mpnn12_model1", "binder_len": 91, "dG": -19.3756, "dSASA": 1227.7707, "dG_dSASA_ratio": -1.5781, "sc": 0.6263, "packstat": 0.5301, "n_hbonds": 3.0, "hbond_pct": 25.0, "unsat_hbonds": 6.0, "unsat_hbonds_pct": 50.0, "n_interface_res": 12.0, "interface_hydro": 51.2615, "interface_sasa_pct": 15.8332, "binder_score": -170.652, "binder_sasa": 7754.3884, "surface_hydro": 0.3306, "binder_helix_pct": 55.9436, "clashes_pre_relax": 2.0, "Average_i_pTM": 0.5558, "Average_ipSAE": 0.4605, "Average_pLDDT": 0.759, "Average_Binder_pLDDT": 0.7442, "Sequence": "AYYGEAYGMASSMHCSSRFYDHTRPGEWVGWDPVDQKSAKNCMQDQCQEPHVMFHALQPFAQFGCRVNLPVDMEECHGCEVNVCHMRSVVS"}, {"design": "demo_l69_s327385_mpnn18_model1", "binder_len": 69, "dG": -35.1184, "dSASA": 1542.1602, "dG_dSASA_ratio": -2.2772, "sc": 0.7385, "packstat": 0.7343, "n_hbonds": 8.0, "hbond_pct": 38.0952, "unsat_hbonds": 2.0, "unsat_hbonds_pct": 9.5238, "n_interface_res": 21.0, "interface_hydro": 54.286, "interface_sasa_pct": 24.6197, "binder_score": -126.9593, "binder_sasa": 6263.9163, "surface_hydro": 0.2788, "binder_helix_pct": 70.832, "clashes_pre_relax": 2.0, "Average_i_pTM": 0.7899, "Average_ipSAE": 0.8209, "Average_pLDDT": 0.8069, "Average_Binder_pLDDT": 0.9194, "Sequence": "PLSQAPDCVEQSFPGWIDDNEFHFTWLPLLVNDHCSSNAPTPLYHVINDMKWVDRTLTNTCERPYIFCW"}, {"design": "demo_l128_s692464_mpnn15_model5", "binder_len": 128, "dG": -43.7945, "dSASA": 1973.9014, "dG_dSASA_ratio": -2.2187, "sc": 0.7856, "packstat": 0.7714, "n_hbonds": 10.0, "hbond_pct": 43.4783, "unsat_hbonds": 3.0, "unsat_hbonds_pct": 13.0435, "n_interface_res": 23.0, "interface_hydro": 52.9945, "interface_sasa_pct": 21.5777, "binder_score": -254.6825, "binder_sasa": 9147.8694, "surface_hydro": 0.1904, "binder_helix_pct": 86.056, "clashes_pre_relax": 1.0, "Average_i_pTM": 0.7698, "Average_ipSAE": 0.8701, "Average_pLDDT": 0.8976, "Average_Binder_pLDDT": 0.878, "Sequence": "PHCTYVHVDPVFTMLPSCTVPNVDYMENYQTTHSYYFKDTFRNPDHTMKYVCWVFRHHWCMEANNKSPKPKAFGSGSNEQFWEQSFQKWIMLAHDIRAYCAEPWFFTEHQMFSYTLWGHNQDNTHEGQ"}, {"design": "demo_l147_s936998_mpnn13_model2", "binder_len": 147, "dG": -30.2639, "dSASA": 1366.0455, "dG_dSASA_ratio": -2.2154, "sc": 0.6786, "packstat": 0.5985, "n_hbonds": 9.0, "hbond_pct": 50.0, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 22.2222, "n_interface_res": 18.0, "interface_hydro": 51.6691, "interface_sasa_pct": 14.1255, "binder_score": -242.5932, "binder_sasa": 9670.7706, "surface_hydro": 0.2478, "binder_helix_pct": 56.276, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.6624, "Average_ipSAE": 0.6719, "Average_pLDDT": 0.8291, "Average_Binder_pLDDT": 0.8859, "Sequence": "SWIHYHNLHMFMQHILAHALIALDDVLLTCSMACEVNLPFKSNSIAYPLDCYQMLDDKRLILMCFHAWRPYDCIILHLLTLDPAAAQEYRQTVFLAFCKKGVIQRAYQPAGSRWLLKHPREVWNDWFSTAQKNPGRASSGHYHYGVG"}, {"design": "demo_l88_s244629_mpnn12_model5", "binder_len": 88, "dG": 7.0837, "dSASA": 366.6183, "dG_dSASA_ratio": 1.9322, "sc": 0.6196, "packstat": 0.479, "n_hbonds": 2.0, "hbond_pct": 25.0, "unsat_hbonds": 7.0, "unsat_hbonds_pct": 87.5, "n_interface_res": 8.0, "interface_hydro": 38.096, "interface_sasa_pct": 5.3516, "binder_score": -108.0659, "binder_sasa": 6850.6461, "surface_hydro": 0.2857, "binder_helix_pct": 50.254, "clashes_pre_relax": 6.0, "Average_i_pTM": 0.4329, "Average_ipSAE": 0.1333, "Average_pLDDT": 0.7104, "Average_Binder_pLDDT": 0.7443, "Sequence": "VRHDMFCTRYINSLDTYGIMPQLYVQMKTYNDTCNEDIVGCKINQLRHPGVEEEGKNSGIYKQQNTPMYEIQAHIFTNVLHRKEQFFV"}, {"design": "demo_l83_s222894_mpnn14_model5", "binder_len": 83, "dG": -28.4728, "dSASA": 1322.385, "dG_dSASA_ratio": -2.1531, "sc": 0.5986, "packstat": 0.6056, "n_hbonds": 8.0, "hbond_pct": 47.0588, "unsat_hbonds": 2.0, "unsat_hbonds_pct": 11.7647, "n_interface_res": 17.0, "interface_hydro": 57.5777, "interface_sasa_pct": 19.3579, "binder_score": -120.4197, "binder_sasa": 6831.2422, "surface_hydro": 0.2929, "binder_helix_pct": 41.7227, "clashes_pre_relax": 6.0, "Average_i_pTM": 0.6635, "Average_ipSAE": 0.5717, "Average_pLDDT": 0.7324, "Average_Binder_pLDDT": 0.8168, "Sequence": "IIDWAFRFNHAIWPGQHMRWTYWHGELFVVSLIGGKAGACTNPPARNDYFKYVDQQRRDPSGDAKPNRECPHTLDFDASCCCA"}, {"design": "demo_l128_s751142_mpnn18_model4", "binder_len": 128, "dG": -31.6573, "dSASA": 1547.2842, "dG_dSASA_ratio": -2.046, "sc": 0.7211, "packstat": 0.6392, "n_hbonds": 4.0, "hbond_pct": 18.1818, "unsat_hbonds": 3.0, "unsat_hbonds_pct": 13.6364, "n_interface_res": 22.0, "interface_hydro": 36.8529, "interface_sasa_pct": 17.6086, "binder_score": -254.624, "binder_sasa": 8787.1032, "surface_hydro": 0.2758, "binder_helix_pct": 64.0542, "clashes_pre_relax": 3.0, "Average_i_pTM": 0.7555, "Average_ipSAE": 0.7006, "Average_pLDDT": 0.8056, "Average_Binder_pLDDT": 0.7558, "Sequence": "RKSMCGFYMLQIFHITSFGWHMRCQYLLYEAKEEYQLCQSASPKWIGSDSKSTMRWHKVPCRWVWRFWAMNTPLEHLRKKMCKSPKSLDYLPSFKSWAKSHFICLLIVHTTGNHWLHHQQSRNTRSLA"}, {"design": "demo_l111_s32174_mpnn5_model4", "binder_len": 111, "dG": -42.7769, "dSASA": 1734.9545, "dG_dSASA_ratio": -2.4656, "sc": 0.7288, "packstat": 0.7225, "n_hbonds": 12.0, "hbond_pct": 66.6667, "unsat_hbonds": 2.0, "unsat_hbonds_pct": 11.1111, "n_interface_res": 18.0, "interface_hydro": 57.616, "interface_sasa_pct": 20.1234, "binder_score": -214.5967, "binder_sasa": 8621.5589, "surface_hydro": 0.3072, "binder_helix_pct": 48.5512, "clashes_pre_relax": 3.0, "Average_i_pTM": 0.8142, "Average_ipSAE": 0.7443, "Average_pLDDT": 0.9162, "Average_Binder_pLDDT": 0.9359, "Sequence": "AGVFFINIWWGRENVVVQKMPYWMRTNEFGILIVAICYIMCYNVFRFAFPEMWTEFAACYSDVDFYYNIFMRGQCVLNDVHDVFQVAGQQKWGVEQGLFHPDPNQDVHIDS"}, {"design": "demo_l134_s927825_mpnn16_model5", "binder_len": 134, "dG": -22.1527, "dSASA": 1262.4175, "dG_dSASA_ratio": -1.7548, "sc": 0.6316, "packstat": 0.548, "n_hbonds": 7.0, "hbond_pct": 35.0, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 20.0, "n_interface_res": 20.0, "interface_hydro": 45.6086, "interface_sasa_pct": 13.7942, "binder_score": -270.8677, "binder_sasa": 9151.7922, "surface_hydro": 0.2704, "binder_helix_pct": 45.1138, "clashes_pre_relax": 1.0, "Average_i_pTM": 0.5337, "Average_ipSAE": 0.5468, "Average_pLDDT": 0.7923, "Average_Binder_pLDDT": 0.7692, "Sequence": "ATCKMLNTVDFPSVVPGHIPEYKSLYSKPERFHGLLFPSNGIYMRRKNCNKIGIEVWHHMETLDQEELKHIECNTPSFRIFAKWKGLEPQHNRHALVMNFRTKCNLKEIVMNRQIPQYVGTKSRCPLGRLYGTL"}, {"design": "demo_l142_s126112_mpnn8_model3", "binder_len": 142, "dG": -20.1461, "dSASA": 1050.106, "dG_dSASA_ratio": -1.9185, "sc": 0.5748, "packstat": 0.5548, "n_hbonds": 4.0, "hbond_pct": 26.6667, "unsat_hbonds": 5.0, "unsat_hbonds_pct": 33.3333, "n_interface_res": 15.0, "interface_hydro": 45.6516, "interface_sasa_pct": 11.4834, "binder_score": -270.148, "binder_sasa": 9144.5912, "surface_hydro": 0.2855, "binder_helix_pct": 62.4879, "clashes_pre_relax": 9.0, "Average_i_pTM": 0.5445, "Average_ipSAE": 0.3545, "Average_pLDDT": 0.7613, "Average_Binder_pLDDT": 0.7548, "Sequence": "TLGPLKNYMEHGTCWFNQWWYHGNGGPLGSYKTITIDEYIYFFVNSPAFRGTIPFKVVKDMPSTHSFNPRECPYAPYKGTMQMSFLLMGDEKYRGFRNTFDPHMRDGSDHVEIFSMDVEGSQLTKVLDDMKMPTGKRVHCLY"}, {"design": "demo_l83_s669343_mpnn13_model2", "binder_len": 83, "dG": -34.6425, "dSASA": 1827.2482, "dG_dSASA_ratio": -1.8959, "sc": 0.7331, "packstat": 0.6638, "n_hbonds": 8.0, "hbond_pct": 34.7826, "unsat_hbonds": 1.0, "unsat_hbonds_pct": 4.3478, "n_interface_res": 23.0, "interface_hydro": 54.7381, "interface_sasa_pct": 25.9491, "binder_score": -166.9094, "binder_sasa": 7041.6706, "surface_hydro": 0.3028, "binder_helix_pct": 78.1981, "clashes_pre_relax": 0.0, "Average_i_pTM": 0.8507, "Average_ipSAE": 0.6865, "Average_pLDDT": 0.8919, "Average_Binder_pLDDT": 0.9548, "Sequence": "LPWHAVLDQHNDIDGDCNKGNRYDGPMDTTRHKHDIMRSPECCGYSMLFLDRAGHDKSAVNWKMFPTTHTYYYWSFHQTDLNN"}, {"design": "demo_l85_s396407_mpnn15_model3", "binder_len": 85, "dG": -25.0576, "dSASA": 1242.1395, "dG_dSASA_ratio": -2.0173, "sc": 0.6733, "packstat": 0.5845, "n_hbonds": 6.0, "hbond_pct": 35.2941, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 23.5294, "n_interface_res": 17.0, "interface_hydro": 56.9997, "interface_sasa_pct": 18.701, "binder_score": -140.4259, "binder_sasa": 6642.1064, "surface_hydro": 0.2808, "binder_helix_pct": 49.1681, "clashes_pre_relax": 6.0, "Average_i_pTM": 0.6155, "Average_ipSAE": 0.484, "Average_pLDDT": 0.7537, "Average_Binder_pLDDT": 0.7488, "Sequence": "FIMWVLAAAISCGYDCPCWYVHFVNKNCKKCILEPWGANCTRVVWASYVSSDAFKQGVAPWLHRPQSFQRWMSECKETPCTGLVD"}, {"design": "demo_l139_s212588_mpnn18_model3", "binder_len": 139, "dG": -35.3281, "dSASA": 1727.3682, "dG_dSASA_ratio": -2.0452, "sc": 0.7458, "packstat": 0.8381, "n_hbonds": 9.0, "hbond_pct": 39.1304, "unsat_hbonds": 2.0, "unsat_hbonds_pct": 8.6957, "n_interface_res": 23.0, "interface_hydro": 58.9417, "interface_sasa_pct": 17.8273, "binder_score": -283.3676, "binder_sasa": 9689.47, "surface_hydro": 0.2575, "binder_helix_pct": 94.041, "clashes_pre_relax": 2.0, "Average_i_pTM": 0.837, "Average_ipSAE": 0.6636, "Average_pLDDT": 0.8286, "Average_Binder_pLDDT": 0.9127, "Sequence": "HHTIHLQECIGKFDCPLLHTKAYAYMGSRRFPNNRIPQKTNWSFGYLEEPVWLVFPWYNWCPQDINFAGESWHSRCTHCWDLPNGCKNENCSSGEHDIDHVWDINDGATRNHCTCPCFMQIEWKCLDMAVVFHPKQHHK"}, {"design": "demo_l67_s447850_mpnn13_model1", "binder_len": 67, "dG": -15.838, "dSASA": 735.4572, "dG_dSASA_ratio": -2.1535, "sc": 0.5735, "packstat": 0.5587, "n_hbonds": 5.0, "hbond_pct": 55.5556, "unsat_hbonds": 5.0, "unsat_hbonds_pct": 55.5556, "n_interface_res": 9.0, "interface_hydro": 46.6669, "interface_sasa_pct": 11.3018, "binder_score": -139.1364, "binder_sasa": 6507.4482, "surface_hydro": 0.2785, "binder_helix_pct": 51.886, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.4974, "Average_ipSAE": 0.3833, "Average_pLDDT": 0.658, "Average_Binder_pLDDT": 0.7629, "Sequence": "WIWAITQSYDPEPPTTFFVGWCTSNWRYQFGSYLNWAKFYKTIMFSKDLQRHCVPTVKFCTCPYWVL"}, {"design": "demo_l114_s58354_mpnn13_model4", "binder_len": 114, "dG": -16.0427, "dSASA": 872.114, "dG_dSASA_ratio": -1.8395, "sc": 0.5593, "packstat": 0.4833, "n_hbonds": 5.0, "hbond_pct": 45.4545, "unsat_hbonds": 5.0, "unsat_hbonds_pct": 45.4545, "n_interface_res": 11.0, "interface_hydro": 57.2516, "interface_sasa_pct": 10.6683, "binder_score": -184.0778, "binder_sasa": 8174.8368, "surface_hydro": 0.3689, "binder_helix_pct": 57.5425, "clashes_pre_relax": 3.0, "Average_i_pTM": 0.4918, "Average_ipSAE": 0.3671, "Average_pLDDT": 0.6679, "Average_Binder_pLDDT": 0.6976, "Sequence": "YKLPFNPFRLIQFDKNRNKFMATQSDVKCESRSQVIPRWTWRTVTASLKFAADHWCSDIADFTNYMCNCTKDHHTWYPCRAANPCCVVGTKRFAQMTVWRMRGMTSHECQTYRH"}, {"design": "demo_l87_s519794_mpnn19_model4", "binder_len": 87, "dG": -32.7938, "dSASA": 1770.3763, "dG_dSASA_ratio": -1.8524, "sc": 0.6195, "packstat": 0.6808, "n_hbonds": 7.0, "hbond_pct": 33.3333, "unsat_hbonds": 3.0, "unsat_hbonds_pct": 14.2857, "n_interface_res": 21.0, "interface_hydro": 61.2173, "interface_sasa_pct": 23.8833, "binder_score": -154.9813, "binder_sasa": 7412.615, "surface_hydro": 0.2834, "binder_helix_pct": 58.8879, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.7074, "Average_ipSAE": 0.6009, "Average_pLDDT": 0.8618, "Average_Binder_pLDDT": 0.8755, "Sequence": "DLDEMWNHTCTLKGVWDEIAQWILLVDADSKVQSMSHCYWRHRQNMQETTCEGKMHHFFEMCSLAHICVHPLWNKSCHVFCKGRHYR"}, {"design": "demo_l65_s471462_mpnn11_model4", "binder_len": 65, "dG": -22.9743, "dSASA": 1155.7866, "dG_dSASA_ratio": -1.9878, "sc": 0.604, "packstat": 0.5788, "n_hbonds": 4.0, "hbond_pct": 28.5714, "unsat_hbonds": 6.0, "unsat_hbonds_pct": 42.8571, "n_interface_res": 14.0, "interface_hydro": 42.4837, "interface_sasa_pct": 18.6273, "binder_score": -121.1123, "binder_sasa": 6204.7839, "surface_hydro": 0.2702, "binder_helix_pct": 49.086, "clashes_pre_relax": 5.0, "Average_i_pTM": 0.5651, "Average_ipSAE": 0.4519, "Average_pLDDT": 0.6745, "Average_Binder_pLDDT": 0.8212, "Sequence": "VSPDFWDMPRLFHYSSWWYKLVAVTWCFKRRKSLFWGKTQMQRFAEMVAKTWRQEMQNEQMKTTD"}, {"design": "demo_l99_s809296_mpnn1_model4", "binder_len": 99, "dG": -32.9747, "dSASA": 1292.5955, "dG_dSASA_ratio": -2.551, "sc": 0.7264, "packstat": 0.6537, "n_hbonds": 8.0, "hbond_pct": 44.4444, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 22.2222, "n_interface_res": 18.0, "interface_hydro": 60.1797, "interface_sasa_pct": 16.6683, "binder_score": -171.0863, "binder_sasa": 7754.8315, "surface_hydro": 0.2808, "binder_helix_pct": 68.7248, "clashes_pre_relax": 7.0, "Average_i_pTM": 0.7526, "Average_ipSAE": 0.6626, "Average_pLDDT": 0.7877, "Average_Binder_pLDDT": 0.8513, "Sequence": "SMMENKNFFGITMTGMIEAKTDCHKEVQPWRMYHHIFYGQVERKEFLRPLEGTMQPVGNCYYSDMYYNIREHVSMPHKKQFWNAYRFISDLKQISYNNI"}, {"design": "demo_l148_s649733_mpnn15_model3", "binder_len": 148, "dG": -29.5176, "dSASA": 1427.5612, "dG_dSASA_ratio": -2.0677, "sc": 0.6213, "packstat": 0.5549, "n_hbonds": 8.0, "hbond_pct": 44.4444, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 22.2222, "n_interface_res": 18.0, "interface_hydro": 47.5781, "interface_sasa_pct": 14.5543, "binder_score": -286.171, "binder_sasa": 9808.4925, "surface_hydro": 0.3017, "binder_helix_pct": 50.1855, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.6811, "Average_ipSAE": 0.5751, "Average_pLDDT": 0.7774, "Average_Binder_pLDDT": 0.8906, "Sequence": "IHRWIWLTNFTVLRFADHLFCMWWIEWDMMGRGPYHNPSERYCLVHSQMKPVPGFDAHRLMRMNAWLGLRWELPCKLEQNRQIKAQVVAASKTHNNILVNPMKKVWHSDPIMKDWCTSFKYHWDSYSERMCRSVKSNTYTYQFFISGM"}, {"design": "demo_l102_s765165_mpnn16_model4", "binder_len": 102, "dG": -25.132, "dSASA": 1098.7668, "dG_dSASA_ratio": -2.2873, "sc": 0.5784, "packstat": 0.5739, "n_hbonds": 5.0, "hbond_pct": 31.25, "unsat_hbonds": 3.0, "unsat_hbonds_pct": 18.75, "n_interface_res": 16.0, "interface_hydro": 47.8019, "interface_sasa_pct": 13.3366, "binder_score": -205.2787, "binder_sasa": 8238.7544, "surface_hydro": 0.3575, "binder_helix_pct": 54.9735, "clashes_pre_relax": 5.0, "Average_i_pTM": 0.5853, "Average_ipSAE": 0.3629, "Average_pLDDT": 0.6789, "Average_Binder_pLDDT": 0.7294, "Sequence": "HLWSVWLHRNIMRRKPVPNVLQRTITKKGAWRSIAYIYWSKEFHWYPLCYNANGDAHNRPYDEQTTECLIKNMPWAPCMTYCDSFCFYQGRNAKTSSSIFCI"}, {"design": "demo_l145_s154168_mpnn15_model1", "binder_len": 145, "dG": -23.6432, "dSASA": 1281.5274, "dG_dSASA_ratio": -1.8449, "sc": 0.6769, "packstat": 0.5688, "n_hbonds": 7.0, "hbond_pct": 43.75, "unsat_hbonds": 5.0, "unsat_hbonds_pct": 31.25, "n_interface_res": 16.0, "interface_hydro": 50.5786, "interface_sasa_pct": 14.2374, "binder_score": -259.7706, "binder_sasa": 9001.1422, "surface_hydro": 0.2979, "binder_helix_pct": 31.2473, "clashes_pre_relax": 5.0, "Average_i_pTM": 0.5565, "Average_ipSAE": 0.4004, "Average_pLDDT": 0.7628, "Average_Binder_pLDDT": 0.7676, "Sequence": "GIHTCMCKHSEYLRHVLRYYWEQCAKHHNINWYRYRTGVSPPDWICAIARTFEWCAWNADPSEDETHEDDYTLLVAPMFPNCWNQFTYNADEQSHRARLRETLVPWMVMNTAVLRGGHHYRTIVLTFCTCLVSTWFVSCPCLVWI"}, {"design": "demo_l79_s256535_mpnn7_model3", "binder_len": 79, "dG": -20.9784, "dSASA": 1070.5979, "dG_dSASA_ratio": -1.9595, "sc": 0.5325, "packstat": 0.5394, "n_hbonds": 5.0, "hbond_pct": 29.4118, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 23.5294, "n_interface_res": 17.0, "interface_hydro": 50.3762, "interface_sasa_pct": 16.1246, "binder_score": -129.3058, "binder_sasa": 6639.5148, "surface_hydro": 0.3307, "binder_helix_pct": 63.3585, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.5118, "Average_ipSAE": 0.4578, "Average_pLDDT": 0.6418, "Average_Binder_pLDDT": 0.696, "Sequence": "PFTIKMQVMGWFNTGMNWWALWRTDFCQWALTFLFKPQAKCKFTLTMLCVACYQKGCVVLLLWGPIAWYIGLVPRWHSP"}, {"design": "demo_l67_s767268_mpnn19_model1", "binder_len": 67, "dG": -11.2807, "dSASA": 821.2033, "dG_dSASA_ratio": -1.3737, "sc": 0.5356, "packstat": 0.5102, "n_hbonds": 2.0, "hbond_pct": 13.3333, "unsat_hbonds": 8.0, "unsat_hbonds_pct": 53.3333, "n_interface_res": 15.0, "interface_hydro": 45.4773, "interface_sasa_pct": 12.8798, "binder_score": -99.2177, "binder_sasa": 6375.922, "surface_hydro": 0.3193, "binder_helix_pct": 30.011, "clashes_pre_relax": 2.0, "Average_i_pTM": 0.4384, "Average_ipSAE": 0.2241, "Average_pLDDT": 0.6608, "Average_Binder_pLDDT": 0.7384, "Sequence": "FGRQDMVHGRFDNGNFLVFVFYHYPMQWWFNEIQCICACERMYTQNSRARYKCHQWCQTSQVDKGFS"}, {"design": "demo_l91_s804849_mpnn4_model3", "binder_len": 91, "dG": -29.8191, "dSASA": 1129.1913, "dG_dSASA_ratio": -2.6408, "sc": 0.6126, "packstat": 0.5659, "n_hbonds": 5.0, "hbond_pct": 23.8095, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 19.0476, "n_interface_res": 21.0, "interface_hydro": 50.6239, "interface_sasa_pct": 15.3561, "binder_score": -220.8423, "binder_sasa": 7353.3608, "surface_hydro": 0.2458, "binder_helix_pct": 63.7044, "clashes_pre_relax": 3.0, "Average_i_pTM": 0.6555, "Average_ipSAE": 0.5016, "Average_pLDDT": 0.7411, "Average_Binder_pLDDT": 0.741, "Sequence": "RMGFSVHFWARVHMLGTSPTHWAPPATRLRALANCSPMPGQHHNMDGDQDQCQKYWWFNEPCLSYGEVGHYMEWGFPWVQHTSAEFNEIYP"}, {"design": "demo_l123_s265974_mpnn14_model5", "binder_len": 123, "dG": -35.3587, "dSASA": 1815.7834, "dG_dSASA_ratio": -1.9473, "sc": 0.7246, "packstat": 0.6549, "n_hbonds": 11.0, "hbond_pct": 50.0, "unsat_hbonds": 3.0, "unsat_hbonds_pct": 13.6364, "n_interface_res": 22.0, "interface_hydro": 60.8324, "interface_sasa_pct": 21.9677, "binder_score": -173.2235, "binder_sasa": 8265.7116, "surface_hydro": 0.2804, "binder_helix_pct": 84.4655, "clashes_pre_relax": 2.0, "Average_i_pTM": 0.7926, "Average_ipSAE": 0.7509, "Average_pLDDT": 0.806, "Average_Binder_pLDDT": 0.9379, "Sequence": "RVEREHQCVGPDSLEWSSPVGTQRYKKKKANNMAYPMAMVRFYGIPNQAKHRLWSCNYMRFSDHNGWIPFMYDRQNIHCGCGCHKNMIGYAKYMIREWRIIRKLPRLQKSVLFDSYENDCLFF"}, {"design": "demo_l81_s544605_mpnn14_model1", "binder_len": 81, "dG": -15.5406, "dSASA": 1001.7659, "dG_dSASA_ratio": -1.5513, "sc": 0.558, "packstat": 0.5316, "n_hbonds": 5.0, "hbond_pct": 41.6667, "unsat_hbonds": 6.0, "unsat_hbonds_pct": 50.0, "n_interface_res": 12.0, "interface_hydro": 50.0261, "interface_sasa_pct": 14.7348, "binder_score": -167.6271, "binder_sasa": 6798.6385, "surface_hydro": 0.2913, "binder_helix_pct": 46.6363, "clashes_pre_relax": 4.0, "Average_i_pTM": 0.4578, "Average_ipSAE": 0.3904, "Average_pLDDT": 0.6955, "Average_Binder_pLDDT": 0.6963, "Sequence": "MCADNPEFGRFHDFYRQWAKYTMRMFVLAARDCCTFTHLVATKIKCFTQLMMKCNMLSTGNKIRMFMTELVRICHQWCCSD"}, {"design": "demo_l76_s288553_mpnn5_model2", "binder_len": 76, "dG": -25.0735, "dSASA": 1264.4974, "dG_dSASA_ratio": -1.9829, "sc": 0.5712, "packstat": 0.6739, "n_hbonds": 8.0, "hbond_pct": 47.0588, "unsat_hbonds": 4.0, "unsat_hbonds_pct": 23.5294, "n_interface_res": 17.0, "interface_hydro": 64.5946, "interface_sasa_pct": 18.4316, "binder_score": -170.9289, "binder_sasa": 6860.4876, "surface_hydro": 0.3209, "binder_helix_pct": 66.6681, "clashes_pre_relax": 5.0, "Average_i_pTM": 0.6395, "Average_ipSAE": 0.4286, "Average_pLDDT": 0.7603, "Average_Binder_pLDDT": 0.7708, "Sequence": "TYLITIKKIHCWLYHDLHFMWHYSTQKECMGRAFRIRAGMVQGAGHLEDMYFWGHNMGHACRNTRFWPLWFMPPIP"}, {"design": "demo_l77_s908841_mpnn20_model1", "binder_len": 77, "dG": -16.9876, "dSASA": 1085.9161, "dG_dSASA_ratio": -1.5644, "sc": 0.5304, "packstat": 0.5825, "n_hbonds": 3.0, "hbond_pct": 17.6471, "unsat_hbonds": 3.0, "unsat_hbonds_pct": 17.6471, "n_interface_res": 17.0, "interface_hydro": 47.1554, "interface_sasa_pct": 15.5631, "binder_score": -126.4968, "binder_sasa": 6977.4984, "surface_hydro": 0.3154, "binder_helix_pct": 71.0251, "clashes_pre_relax": 5.0, "Average_i_pTM": 0.5736, "Average_ipSAE": 0.337, "Average_pLDDT": 0.6604, "Average_Binder_pLDDT": 0.7491, "Sequence": "KLMKPVHNDDVVIWDRTQTQRIWGSCPAEHHDGLVCMYDPEHRKHNAASILIADVGKDPVYGQASMMLRTCDWYFIN"}];
+const RANK_EXCLUDE = [{"col": "dG", "op": "<", "val": 0.0}];
+const RMETA  = [{"col": "dG", "label": "dG", "higher": false, "min": -43.7945, "max": 7.0837}, {"col": "sc", "label": "SC", "higher": true, "min": 0.4897, "max": 0.7856}, {"col": "Average_i_pTM", "label": "i_pTM", "higher": true, "min": 0.3469, "max": 0.8653}, {"col": "Average_ipSAE", "label": "ipSAE", "higher": true, "min": 0.1333, "max": 0.8701}, {"col": "dSASA", "label": "dSASA", "higher": true, "min": 366.6183, "max": 1973.9014}, {"col": "packstat", "label": "packstat", "higher": true, "min": 0.4573, "max": 0.8381}, {"col": "unsat_hbonds", "label": "BUNS", "higher": false, "min": 1.0, "max": 8.0}, {"col": "n_hbonds", "label": "H-bonds", "higher": true, "min": 1.0, "max": 12.0}, {"col": "surface_hydro", "label": "surf_hydro", "higher": false, "min": 0.1904, "max": 0.3689}, {"col": "Average_Binder_pLDDT", "label": "binder_pLDDT", "higher": true, "min": 0.6054, "max": 0.9627}, {"col": "interface_sasa_pct", "label": "iface_SASA%", "higher": true, "min": 5.3516, "max": 25.9491}, {"col": "interface_hydro", "label": "iface_hydro", "higher": false, "min": 34.9803, "max": 64.5946}, {"col": "binder_helix_pct", "label": "helix%", "higher": true, "min": 25.1692, "max": 94.041}, {"col": "binder_score", "label": "binder_E", "higher": false, "min": -315.888, "max": -99.2177}, {"col": "clashes_pre_relax", "label": "clashes_pre", "higher": false, "min": 0.0, "max": 9.0}, {"col": "Average_pLDDT", "label": "pLDDT", "higher": true, "min": 0.6219, "max": 0.9162}];
+const FDEFS  = [{"col": "dG", "label": "dG (kcal/mol)", "op": "<", "val": -20.0, "enabled": true}, {"col": "sc", "label": "SC", "op": ">", "val": 0.65, "enabled": true}, {"col": "unsat_hbonds", "label": "BUNS", "op": "<", "val": 3.0, "enabled": true}, {"col": "dSASA", "label": "dSASA (\u00c5\u00b2)", "op": ">", "val": 1200.0, "enabled": false}, {"col": "Average_i_pTM", "label": "i_pTM", "op": ">", "val": 0.7, "enabled": false}, {"col": "surface_hydro", "label": "surf_hydro", "op": "<", "val": 0.28, "enabled": false}];
+const TCOLS  = ["design", "binder_len", "dG", "dSASA", "dG_dSASA_ratio", "sc", "packstat", "n_hbonds", "hbond_pct", "unsat_hbonds", "unsat_hbonds_pct", "n_interface_res", "interface_hydro", "interface_sasa_pct", "binder_score", "binder_sasa", "surface_hydro", "binder_helix_pct", "clashes_pre_relax", "Average_i_pTM", "Average_ipSAE", "Average_pLDDT", "Average_Binder_pLDDT", "Sequence"];
+const DVCOLS = ["design", "binder_len", "dG", "dSASA", "sc", "packstat", "n_hbonds", "unsat_hbonds", "Average_i_pTM", "Average_ipSAE", "Average_pLDDT", "surface_hydro", "Average_Binder_pLDDT"];
+let fRows=[ ...DATA],sortedRows=[],selDesigns=new Set();
+let activeAxes=new Set(RMETA.slice(0,9).map(m=>m.col));
+let sortC=null,sortD=1,visCols=new Set(DVCOLS);
+const FSTATE={};
+function norm(val,meta){
+  if(val===''||val===null||val===undefined||isNaN(+val))return 0;
+  const v=+val,range=meta.max-meta.min;
+  if(range===0)return 0.5;
+  return Math.max(0,Math.min(1,meta.higher?(v-meta.min)/range:(meta.max-v)/range));
+}
+function cellCls(col,val){
+  const fs=FSTATE[col];
+  if(!fs||!fs.enabled||val===''||val===null||val===undefined)return '';
+  const v=+val,t=fs.val,op=fs.op;
+  const ok=op==='<'?v<t:op==='>'?v>t:op==='='?Math.abs(v-t)<1e-9:op==='<='?v<=t:v>=t;
+  return ok?'ok':'no';
+}
+function buildFilters(){
+  document.getElementById('fctrl').innerHTML=FDEFS.map((f,i)=>`
+    <div class="fr">
+      <input type="checkbox" id="fe${i}" ${f.enabled?'checked':''}>
+      <label for="fe${i}" title="${f.col}">${f.label}</label>
+      <select id="fo${i}">
+        ${['<','>','=','<=','>='].map(o=>`<option ${(f.op==='=='?'=':f.op)===o?'selected':''}>${o}</option>`).join('')}
+      </select>
+      <input type="text" id="fv${i}" value="${f.val}" onkeydown="if(event.key==='Enter') applyF()">
+    </div>`).join('');
+}
+function buildAxes(){
+  document.getElementById('axctrl').innerHTML=RMETA.map(m=>`
+    <label class="chip ${activeAxes.has(m.col)?'on':''}" id="chip_${m.col}">
+      <input type="checkbox" ${activeAxes.has(m.col)?'checked':''} onchange="togAx('${m.col}',this.checked)">
+      ${m.label}${m.higher?'':' ↓'}
+    </label>`).join('');
+}
+function togAx(col,v){
+  v?activeAxes.add(col):activeAxes.delete(col);
+  document.getElementById('chip_'+col).classList.toggle('on',v);
+  renderRadar(true);
+}
+function buildColToggles(){
+  document.getElementById('ctog').innerHTML=TCOLS.map(c=>
+    `<button class="cb ${visCols.has(c)?'on':''}" onclick="togCol('${c}',this)">${c}</button>`
+  ).join('');
+}
+function togCol(c,btn){
+  if(visCols.has(c)&&visCols.size>2){visCols.delete(c);btn.classList.remove('on');}
+  else{visCols.add(c);btn.classList.add('on');}
+  renderTable();
+}
+function applyF(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  FDEFS.forEach((f,i)=>{
+    FSTATE[f.col]={enabled:document.getElementById('fe'+i).checked,
+                   op:document.getElementById('fo'+i).value,
+                   val:+document.getElementById('fv'+i).value};
+  });
+  fRows=DATA.filter(row=>{
+    if(q&&!String(row.design||'').toLowerCase().includes(q))return false;
+    for(let i=0;i<FDEFS.length;i++){
+      if(!document.getElementById('fe'+i).checked)continue;
+      const rv=row[FDEFS[i].col];
+      if(rv===''||rv===null||rv===undefined)continue;
+      const v=+rv,thr=+document.getElementById('fv'+i).value,op=document.getElementById('fo'+i).value;
+      if(op==='<'&&!(v<thr))return false;
+      if(op==='>'&&!(v>thr))return false;
+      if(op==='='&&!(Math.abs(v-thr)<1e-9))return false;
+      if(op==='<='&&!(v<=thr))return false;
+      if(op==='>='&&!(v>=thr))return false;
+    }
+    return true;
+  });
+  document.getElementById('pc').textContent=fRows.length;
+  const keep=new Set(fRows.map(r=>r.design));
+  [...selDesigns].forEach(d=>{if(!keep.has(d))selDesigns.delete(d);});
+  updateSelCount();
+  renderTable();
+  try{renderRadar(true);}catch(e){console.warn('Radar no disponible:',e);}
+}
+function resetF(){
+  FDEFS.forEach((f,i)=>{
+    document.getElementById('fe'+i).checked=f.enabled;
+    document.getElementById('fo'+i).value=f.op==='=='?'=':f.op;
+    document.getElementById('fv'+i).value=f.val;
+  });
+  document.getElementById('srch').value='';
+  applyF();
+}
+function renderTable(){
+  const cols=TCOLS.filter(c=>visCols.has(c));
+  document.getElementById('thead').innerHTML='<tr>'
+    +'<th style="width:22px;min-width:22px"></th>'
+    +cols.map(c=>`<th onclick="srtBy('${c}')" class="${sortC===c?(sortD>0?'sa':'sd'):''}">${
+      c}</th>`).join('')+'</tr>';
+  const rows=[...fRows];
+  if(sortC){
+    rows.sort((a,b)=>{
+      const va=a[sortC],vb=b[sortC];
+      if(va===''||va===null)return 1;
+      if(vb===''||vb===null)return -1;
+      return(isNaN(+va)?String(va).localeCompare(String(vb)):+va-+vb)*sortD;
+    });
+  }
+  sortedRows=rows;
+  document.getElementById('tbody').innerHTML=rows.map(row=>{
+    const sel=selDesigns.has(row.design);
+    const esc=row.design;
+    return `<tr class="${sel?'sel':''}" onclick="togSel('${esc}',this)">
+      <td style="text-align:center;color:var(--accent);font-size:15px">${sel?'●':'○'}</td>
+      ${cols.map(c=>{
+        const v=row[c];
+        const d=(v!==''&&v!==null&&v!==undefined)?v:'—';
+        return `<td class="${cellCls(c,v)}" title="${v}">${d}</td>`;
+      }).join('')}
+    </tr>`;
+  }).join('');
+}
+function srtBy(c){sortC===c?sortD*=-1:(sortC=c,sortD=1);renderTable();}
+function togSel(design,tr){
+  if(selDesigns.has(design)){selDesigns.delete(design);tr.classList.remove('sel');tr.cells[0].textContent='○';}
+  else{
+    if(selDesigns.size>=10){alert('Máximo 10 diseños en el radar.');return;}
+    selDesigns.add(design);tr.classList.add('sel');tr.cells[0].textContent='●';
+  }
+  updateSelCount();renderRadar(true);
+}
+function clearSel(){selDesigns.clear();updateSelCount();renderTable();renderRadar(true);}
+function updateSelCount(){
+  const txt=selDesigns.size+' seleccionados para radar';
+  document.getElementById('selcount').textContent=txt;
+  document.getElementById('selcount2').textContent=txt;
+}
+const COLORS=['#38bdf8','#f472b6','#a78bfa','#34d399','#fb923c',
+              '#facc15','#60a5fa','#f87171','#4ade80','#e879f9'];
+function renderRadar(silent){
+  const axes=RMETA.filter(m=>activeAxes.has(m.col));
+  if(axes.length<3){if(!silent)alert('Selecciona al menos 3 ejes.');return;}
+  const designs=selDesigns.size>0?[...selDesigns]
+    :(sortedRows.length?sortedRows:fRows).slice(0,5).map(r=>r.design);
+  if(!designs.length){if(!silent)alert('No hay diseños.');Plotly.purge('rplot');return;}
+  const theta=axes.map(m=>m.label+(m.higher?'':' ↓'));
+  const traces=designs.map((d,i)=>{
+    const row=DATA.find(r=>r.design===d)||{};
+    const r=axes.map(m=>norm(row[m.col],m));
+    const rawVals=axes.map(m=>{
+      const v=row[m.col];
+      return(v!==''&&v!==null&&v!==undefined)?(+v).toFixed(3):'N/A';
+    });
+    return{type:'scatterpolar',r:[...r,r[0]],theta:[...theta,theta[0]],fill:'toself',
+           name:d.length>32?'…'+d.slice(-30):d,
+           line:{color:COLORS[i%COLORS.length],width:2},
+           fillcolor:COLORS[i%COLORS.length]+'22',
+           hovertemplate:axes.map((m,j)=>`<b>${m.label}</b>: ${rawVals[j]}`).join('<br>')
+                        +'<extra>'+d.slice(-35)+'</extra>'};
+  });
+  Plotly.react('rplot',traces,{
+    polar:{bgcolor:'#0a1929',
+           angularaxis:{tickfont:{color:'#94a3b8',size:15},linecolor:'#334155',gridcolor:'#1e293b'},
+           radialaxis:{visible:true,range:[0,1],tickfont:{color:'#475569',size:13},gridcolor:'#1e3452',linecolor:'#1e3452'}},
+    paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',
+    legend:{font:{color:'#94a3b8',size:14},bgcolor:'rgba(0,0,0,0)',orientation:'h',x:0,y:-0.15},
+    margin:{l:60,r:140,t:30,b:30},showlegend:true,
+  },{responsive:true,displayModeBar:false});
+}
+function downloadFasta(){
+  const source=selDesigns.size>0?DATA.filter(r=>selDesigns.has(r.design)):fRows;
+  if(!source.length){alert('No hay diseños.');return;}
+  const wrap=(seq,w=60)=>seq.replace(new RegExp(`(.{${w}})`,'g'),'$1\\n').trimEnd();
+  const text=source.map(r=>`>${r.design}\\n${wrap(r.Sequence||'')}`).join('\\n');
+  const a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(text);
+  const tag=selDesigns.size>0?'selected':'filtered';
+  a.download=`demo_${source.length}_${tag}.fasta`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+document.getElementById('tc').textContent=DATA.length;
+
+// ── Ranking multicriterio ─────────────────────────────────────────────────────
+const RANK_METRICS=[{"col": "dG", "label": "dG", "higher": false, "w": 2.0}, {"col": "sc", "label": "SC", "higher": true, "w": 2.0}, {"col": "Average_i_pTM", "label": "i_pTM", "higher": true, "w": 2.0}, {"col": "Average_ipSAE", "label": "ipSAE", "higher": true, "w": 2.0}, {"col": "dSASA", "label": "dSASA", "higher": true, "w": 1.5}, {"col": "packstat", "label": "packstat", "higher": true, "w": 1.5}, {"col": "unsat_hbonds", "label": "BUNS", "higher": false, "w": 1.5}, {"col": "n_hbonds", "label": "H-bonds", "higher": true, "w": 1.0}, {"col": "surface_hydro", "label": "surf_hydro", "higher": false, "w": 1.0}, {"col": "Average_Binder_pLDDT", "label": "binder_pLDDT", "higher": true, "w": 1.0}];
+let rankingData=null,rankRendered=false,rankSortC=null,rankSortD=1;
+let rankSelDesigns=new Set();
+
+function computeRanking(){
+  const valid=DATA.filter(r=>RANK_EXCLUDE.every(f=>{
+    const v=+r[f.col]; if(!isFinite(v))return true;
+    return f.op===">"?v>f.val:f.op==="<"?v<f.val:v===f.val;}));
+  const mmx={};
+  RANK_METRICS.forEach(m=>{
+    const vs=valid.map(r=>+r[m.col]).filter(v=>isFinite(v));
+    mmx[m.col]={mn:Math.min(...vs),mx:Math.max(...vs)};
+  });
+  return valid.map(r=>{
+    const contrib={};let total=0;
+    RANK_METRICS.forEach(m=>{
+      const v=+r[m.col];
+      if(!isFinite(v)){contrib[m.col]=0;return;}
+      const {mn,mx}=mmx[m.col];
+      const range=mx-mn;
+      const n=range===0?0.5:(v-mn)/range;
+      const c=(m.higher?n:1-n)*m.w;
+      contrib[m.col]=c;total+=c;
+    });
+    return Object.assign({},r,{_score:total,_contrib:contrib});
+  }).sort((a,b)=>b._score-a._score);
+}
+
+function renderRankingRadar(data){
+  const designs=rankSelDesigns.size>0
+    ?data.filter(r=>rankSelDesigns.has(r.design))
+    :data.slice(0,5);
+  if(!designs.length){try{Plotly.purge("rank-radar");}catch(e){}return;}
+  const axes=RANK_METRICS.map(m=>m.label);
+  const RCOLS=["#38bdf8","#f472b6","#a78bfa","#34d399","#fb923c",
+               "#facc15","#60a5fa","#f87171","#4ade80","#e879f9"];
+  const traces=designs.map((r,i)=>{
+    const vals=RANK_METRICS.map(m=>r._contrib[m.col]/m.w);
+    const rawVals=RANK_METRICS.map(m=>{
+      const v=r[m.col];
+      return(v!==""&&v!==null&&v!==undefined)?Number(v).toFixed(3):"N/A";
+    });
+    const name=r.design.length>28?"..."+r.design.slice(-26):r.design;
+    return{
+      type:"scatterpolar",r:[...vals,vals[0]],theta:[...axes,axes[0]],fill:"toself",name,
+      line:{color:RCOLS[i%RCOLS.length],width:2},
+      fillcolor:RCOLS[i%RCOLS.length]+"22",
+      hovertemplate:RANK_METRICS.map((m,j)=>`<b>${m.label}</b>: ${rawVals[j]}`).join("<br>")
+        +`<br><b>Score</b>: ${r._score.toFixed(3)}<extra>${name}</extra>`,
+    };
+  });
+  Plotly.react("rank-radar",traces,{
+    polar:{bgcolor:"#0a1929",
+      angularaxis:{tickfont:{color:"#94a3b8",size:12},linecolor:"#334155",gridcolor:"#1e293b"},
+      radialaxis:{visible:true,range:[0,1],tickfont:{color:"#475569",size:10},
+                 gridcolor:"#1e3452",linecolor:"#1e3452"}},
+    paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
+    legend:{font:{color:"#94a3b8",size:11},bgcolor:"rgba(0,0,0,0)",orientation:"h",x:0,y:-0.18},
+    margin:{l:45,r:45,t:25,b:55},showlegend:true,
+  },{responsive:true,displayModeBar:false});
+}
+
+function renderRankingChart(data){
+  const top=data.slice(0,25);
+  const labels=top.map(r=>r.design.length>32?"..."+r.design.slice(-30):r.design);
+  const RCOLS=["#38bdf8","#f472b6","#a78bfa","#34d399","#fb923c",
+               "#facc15","#60a5fa","#f87171","#4ade80","#e879f9","#22d3ee","#c084fc"];
+  const traces=RANK_METRICS.map((m,i)=>({
+    type:"bar",orientation:"h",
+    name:`${m.label} (x${m.w}${m.higher?"up":"dn"})`,
+    x:top.map(r=>r._contrib[m.col]),y:labels,
+    marker:{color:RCOLS[i%RCOLS.length]},
+    hovertemplate:`<b>${m.label}</b>: %{x:.3f}<extra></extra>`,
+  }));
+  Plotly.react("rank-bar",traces,{
+    barmode:"stack",
+    paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
+    xaxis:{title:"Score",color:"#94a3b8",gridcolor:"#1e293b",titlefont:{color:"#94a3b8"}},
+    yaxis:{autorange:"reversed",color:"#94a3b8",tickfont:{size:10}},
+    legend:{font:{color:"#94a3b8",size:10},bgcolor:"rgba(0,0,0,0)",
+            orientation:"h",x:0,y:1.55,xanchor:"left"},
+    margin:{l:200,r:10,t:140,b:35},
+  },{responsive:true,displayModeBar:false});
+}
+
+function renderRankingTable(data){
+  const rows=rankSortC?[...data].sort((a,b)=>{
+    const va=a[rankSortC],vb=b[rankSortC];
+    if(va===undefined)return 1;if(vb===undefined)return -1;
+    return(isNaN(+va)?String(va).localeCompare(String(vb)):+va-+vb)*rankSortD;
+  }):data;
+  const hdrs=[
+    {col:"_sel",label:""},
+    {col:"_rank",label:"#"},
+    {col:"design",label:"Design"},
+    {col:"_score",label:"Score"},
+    {col:"binder_len",label:"len"},
+  ].concat(RANK_METRICS.map(m=>({col:m.col,label:m.label})));
+  document.getElementById("rank-thead").innerHTML="<tr>"+hdrs.map(h=>{
+    if(h.col==="_sel")return`<th style="width:20px"></th>`;
+    const act=rankSortC===h.col;
+    const suf=act?(rankSortD>0?" \u2191":" \u2193"):"";
+    const sty=act?' style="color:var(--accent)"':"";
+    return `<th data-col='${h.col}' onclick='sortRank(this.dataset.col)'${sty}>${h.label}${suf}</th>`;
+  }).join("")+"</tr>";
+  document.getElementById("rank-tbody").innerHTML=rows.map(r=>{
+    const origRank=data.indexOf(r)+1;
+    const isSel=rankSelDesigns.has(r.design);
+    const bg=isSel?"rgba(56,189,248,0.12)":origRank<=3?"rgba(56,189,248,0.05)":origRank<=5?"rgba(74,222,128,0.04)":"";
+    const cells=hdrs.map(h=>{
+      if(h.col==="_sel") return `<td style="text-align:center;color:var(--accent)">${isSel?"●":"○"}</td>`;
+      if(h.col==="_rank") return `<td style="color:var(--accent);font-weight:700;text-align:center">${origRank}</td>`;
+      if(h.col==="design") return `<td style="font-family:monospace;max-width:190px;overflow:hidden;text-overflow:ellipsis" title="${r.design}">${r.design}</td>`;
+      if(h.col==="_score") return `<td style="color:var(--yellow);font-weight:700">${r._score.toFixed(3)}</td>`;
+      if(h.col==="binder_len") return `<td>${r.binder_len}</td>`;
+      const raw=r[h.col];
+      const m=RANK_METRICS.find(x=>x.col===h.col);
+      let color="var(--text)";
+      if(m){const pct=r._contrib[h.col]/m.w;color=`hsl(${pct*120},65%,50%)`;}
+      const disp=(raw!==""&&raw!==undefined&&raw!==null)?(isNaN(+raw)?raw:Number(raw).toFixed(3)):"--";
+      return `<td style="color:${color};text-align:right">${disp}</td>`;
+    });
+    return `<tr style="background:${bg};cursor:pointer" data-design="${r.design}" onclick="toggleRankSel(this.dataset.design)">${cells.join("")}</tr>`;
+  }).join("");
+}
+function sortRank(c){
+  rankSortC===c?rankSortD*=-1:(rankSortC=c,rankSortD=c==="_score"?-1:1);
+  renderRankingTable(rankingData);
+}
+function toggleRankSel(design){
+  if(rankSelDesigns.has(design))rankSelDesigns.delete(design);
+  else{if(rankSelDesigns.size>=10)return;rankSelDesigns.add(design);}
+  renderRankingTable(rankingData);
+  try{renderRankingRadar(rankingData);}catch(e){console.warn(e);}
+}
+function toggleSelFromRank(design){toggleRankSel(design);}
+function switchTab(tab){
+  ["explorer","ranking","contexto"].forEach(t=>{
+    document.getElementById("tab-"+t).style.display="none";
+    document.getElementById("btn-"+t).classList.remove("active");
+  });
+  document.getElementById("tab-"+tab).style.display="flex";
+  document.getElementById("btn-"+tab).classList.add("active");
+  if(tab==="ranking"&&!rankRendered){
+    rankingData=computeRanking();
+    try{renderRankingChart(rankingData);}catch(e){console.warn("bar:",e);}
+    try{renderRankingRadar(rankingData);}catch(e){console.warn("radar:",e);}
+    renderRankingTable(rankingData);
+    rankRendered=true;
+  }
+}
+
+buildFilters();buildAxes();buildColToggles();applyF();
+switchTab("contexto");
+</script>
+</body>
+</html>

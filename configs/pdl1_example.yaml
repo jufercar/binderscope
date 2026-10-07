@@ -1,0 +1,127 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PD-L1 — the public BindCraft benchmark target
+#
+# The simplest useful configuration: the design target is the native protein,
+# so no reversion and no reference-frame geometry are needed. Interface scoring
+# and ranking apply unchanged.
+#
+# Reproduce the inputs by running the BindCraft PD-L1 example
+# (https://github.com/martinpacesa/BindCraft), then point `designs` and
+# `bindcraft_stats` at its output directory.
+#
+# Paths are resolved relative to this file.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: pdl1_example
+description: >
+  Binders designed against human PD-L1 (BindCraft example target, chain A,
+  residues 18-132, hotspot 56). Interface metrics from PyRosetta joined with
+  the AlphaFold2 statistics BindCraft writes.
+
+designs: ../runs/pdl1_example/output/Accepted
+bindcraft_stats: ../runs/pdl1_example/output/final_design_stats.csv
+output: ../runs/pdl1_example/analysis
+
+chains:
+  target: A
+  binder: B
+
+rosetta:
+  # Both binaries ship with BindCraft, in its functions/ directory.
+  # DAlphaBall enables the BuriedUnsatHbonds filter; without it the pipeline
+  # falls back to InterfaceAnalyzer's own estimate.
+  dalphaball: ../../BindCraft/functions/DAlphaBall.gcc
+  dssp: ../../BindCraft/functions/dssp
+  relax_repeats: 1
+  relax_max_iter: 100
+  relax_backbone: false      # chi-only: repack side chains, keep the predicted backbone
+  interface: A_B
+
+geometry:
+  interface_cutoff: 4.0      # Å, heavy-atom distance defining an interface residue
+  prerelax_clash_cutoff: 2.4
+
+# ── Hard filters ─────────────────────────────────────────────────────────────
+# Reported by `binderscope rank` and used as the dashboard's initial filter
+# state. Disabled entries appear in the dashboard ready to switch on.
+filters:
+  - { col: dG,             label: "dG (kcal/mol)", op: "<", value: -10,  enabled: true }
+  - { col: dSASA,          label: "dSASA (Å²)",    op: ">", value: 800,  enabled: true }
+  - { col: sc,             label: "SC",            op: ">", value: 0.60, enabled: true }
+  - { col: packstat,       label: "packstat",      op: ">", value: 0.60, enabled: true }
+  - { col: unsat_hbonds,   label: "BUNS",          op: "<", value: 3,    enabled: true }
+  - { col: n_hbonds,       label: "H-bonds",       op: ">", value: 3,    enabled: false }
+  - { col: Average_i_pTM,  label: "i_pTM",         op: ">", value: 0.60, enabled: false }
+  - { col: Average_ipSAE,  label: "ipSAE",         op: ">", value: 0.50, enabled: false }
+  - { col: Average_pLDDT,  label: "pLDDT",         op: ">", value: 0.70, enabled: false }
+  - { col: surface_hydro,  label: "surf_hydro",    op: "<", value: 0.30, enabled: false }
+
+# ── Multi-criteria ranking ───────────────────────────────────────────────────
+# Weights are priorities, not measurements. They are here so a reader can see
+# and argue with them. Change them and re-run `binderscope rank`; nothing is
+# recomputed.
+ranking:
+  # Designs are dropped before normalisation, so one artefact cannot stretch
+  # the scale and compress every real design into a narrow band.
+  exclude:
+    - { col: dG, op: "<", value: 0 }
+
+  metrics:
+    - col: dG
+      label: dG
+      higher_is_better: false
+      weight: 2.0
+      description: Interface free energy (kcal/mol) — more negative is better
+    - col: sc
+      label: SC
+      higher_is_better: true
+      weight: 2.0
+      description: Shape complementarity (Lawrence & Colman)
+    - col: Average_i_pTM
+      label: i_pTM
+      higher_is_better: true
+      weight: 2.0
+      description: Interface predicted TM-score — overall confidence in the interface
+    - col: Average_ipSAE
+      label: ipSAE
+      higher_is_better: true
+      weight: 2.0
+      description: Interface predicted aligned error — per-residue interface accuracy
+    - col: dSASA
+      label: dSASA
+      higher_is_better: true
+      weight: 1.5
+      description: Surface area buried on binding (Å²)
+    - col: packstat
+      label: packstat
+      higher_is_better: true
+      weight: 1.5
+      description: Atomic packing quality across the interface
+    - col: unsat_hbonds
+      label: BUNS
+      higher_is_better: false
+      weight: 1.5
+      description: Buried unsatisfied hydrogen bonds — an energetic penalty
+    - col: n_hbonds
+      label: H-bonds
+      higher_is_better: true
+      weight: 1.0
+      description: Hydrogen bonds across the interface
+    - col: surface_hydro
+      label: surf_hydro
+      higher_is_better: false
+      weight: 1.0
+      description: Hydrophobic fraction of the binder's exposed surface — lower is more soluble
+    - col: Average_Binder_pLDDT
+      label: binder_pLDDT
+      higher_is_better: true
+      weight: 1.0
+      description: Mean binder pLDDT — confidence in the binder fold on its own
+
+# ── Optional PyMOL sessions ──────────────────────────────────────────────────
+# Written by `binderscope revert --sessions`; needs a `reference` section, so
+# this target does not produce them.
+pymol:
+  colors:
+    binder: cyan
+    target: wheat

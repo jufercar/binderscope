@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: "binderscope: structure-aware triage of protein binder designs"
+abstract: >-
+  A post-processing pipeline for protein binder design campaigns. Restores an
+  engineered design target to wild type before scoring, computes interface
+  metrics with PyRosetta, measures where the binder sits relative to a
+  reference structure, ranks designs on explicit weighted criteria, and renders
+  a self-contained interactive dashboard. All target-specific parameters are
+  configuration, so a run is reproducible from a single YAML file.
+type: software
+version: 0.1.0
+date-released: "2026-10-07"
+license: MIT
+repository-code: https://github.com/jcarrillo/binderscope
+authors:
+  - family-names: Carrillo
+    given-names: Juan
+    email: juanfc1995@gmail.com
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+keywords:
+  - protein design
+  - binder design
+  - structural biology
+  - PyRosetta
+  - BindCraft
+  - interface analysis
+  - open science
+references:
+  - type: article
+    title: One-shot design of functional protein binders with BindCraft
+    authors:
+      - family-names: Pacesa
+        given-names: Martin
+      - family-names: Nickel
+        given-names: Lennart
+      - family-names: Schellhaas
+        given-names: Christian
+    journal: Nature
+    volume: 646
+    start: 483
+    end: 492
+    year: 2025
+    doi: 10.1038/s41586-025-09429-6

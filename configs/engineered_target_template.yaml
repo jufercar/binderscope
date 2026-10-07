@@ -1,0 +1,133 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Template: engineered target with a reference structure
+#
+# Use this when the design target is not the native protein — a construct
+# spliced from several fragments of a reference structure, with surface
+# substitutions introduced to steer the binder to a chosen face.
+#
+# Two things then become possible that a plain run cannot do:
+#
+#   1. Reversion. The substitutions are restored to wild type before any metric
+#      is computed, so the scored interface is the biologically relevant one
+#      rather than the engineered surface.
+#
+#   2. Placement geometry. The complex is superposed back into the reference
+#      frame, and binder clashes are counted against chosen reference chains.
+#      A binder that penetrates its own target is wrong however well it scores;
+#      a binder that occupies the space of a native partner is evidence it
+#      engages the intended surface.
+#
+# All numbers below are placeholders. Replace them with your own construct and
+# keep the file next to the data it describes, not in a public repository, if
+# the construct is unpublished.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: engineered_example
+description: >
+  Template configuration for a chimeric design target mapped onto a
+  crystallographic reference.
+
+designs: ./designs/Accepted
+bindcraft_stats: ./designs/final_design_stats.csv
+output: ./analysis
+
+chains:
+  target: A       # BindCraft renames the target chain to A and renumbers from 1
+  binder: B
+
+reference:
+  # The experimental structure the construct was built from.
+  structure: ./input/reference_complex.pdb
+  target_chain: D
+
+  # The construct as given to the design run: same numbering as the design
+  # PDBs, carrying the engineered substitutions. Required for reversion.
+  native_target: ./input/engineered_target.pdb
+
+  # Each segment maps an inclusive design-numbered range onto the reference.
+  # `reference_start` is the number its first residue takes in the reference;
+  # the offset is derived, so it never has to be written by hand.
+  segments:
+    - { label: seg1, input: [1, 73],   reference_start: 81 }
+    - { label: seg2, input: [77, 83],  reference_start: 417 }
+    - { label: seg3, input: [86, 141], reference_start: 435 }
+
+  # Artificial linker positions. They have no reference equivalent and are
+  # excluded from every superposition.
+  linkers:
+    - [74, 76]
+    - [84, 85]
+
+  # Substitutions to restore. `position` is in design numbering, `wild_type` is
+  # the three-letter code to restore, `reference_position` locates the residue
+  # in the reference structure.
+  revert_mutations:
+    - { position: 78,  wild_type: ALA, reference_position: 418 }
+    - { position: 79,  wild_type: ASN, reference_position: 419 }
+    - { position: 90,  wild_type: VAL, reference_position: 439 }
+    - { position: 117, wild_type: LEU, reference_position: 466 }
+
+  # Reference chains to measure the binder against once it is in the reference
+  # frame. `expect` is documentation; `measure_volume` adds a voxelised overlap
+  # volume, which is the expensive part.
+  clash_targets:
+    - { chain: D, label: target,         expect: low,  measure_volume: false }
+    - { chain: B, label: native_partner, expect: high, measure_volume: true }
+
+rosetta:
+  dalphaball: ../BindCraft/functions/DAlphaBall.gcc
+  dssp: ../BindCraft/functions/dssp
+  relax_repeats: 1
+  relax_backbone: false
+  interface: A_B
+
+geometry:
+  clash_hard: 2.0
+  clash_soft: 2.5
+  interface_cutoff: 4.0
+  atom_radius: 1.8
+  probe_radius: 1.4
+  voxel: 1.0
+
+filters:
+  - { col: dG,                  label: "dG (kcal/mol)",  op: "<", value: -10,  enabled: true }
+  - { col: dSASA,               label: "dSASA (Å²)",     op: ">", value: 800,  enabled: true }
+  - { col: sc,                  label: "SC",             op: ">", value: 0.60, enabled: true }
+  - { col: unsat_hbonds,        label: "BUNS",           op: "<", value: 3,    enabled: true }
+  # Column names for clash metrics are built from the clash_target labels above.
+  - { col: clash_target_hard,   label: "clash target",   op: "=", value: 0,    enabled: true }
+  - { col: V_inter_native_partner_pct, label: "V∩native%", op: ">", value: 10, enabled: false }
+
+ranking:
+  exclude:
+    - { col: dG, op: "<", value: 0 }
+  metrics:
+    - { col: dG,                  label: dG,           higher_is_better: false, weight: 2.0,
+        description: Interface free energy (kcal/mol) }
+    - { col: sc,                  label: SC,           higher_is_better: true,  weight: 2.0,
+        description: Shape complementarity }
+    - { col: Average_i_pTM,       label: i_pTM,        higher_is_better: true,  weight: 2.0,
+        description: Interface predicted TM-score }
+    - { col: Average_ipSAE,       label: ipSAE,        higher_is_better: true,  weight: 2.0,
+        description: Interface predicted aligned error }
+    - { col: clash_target_hard,   label: clash_target, higher_is_better: false, weight: 2.0,
+        description: Binder atoms penetrating the target in the reference frame }
+    - { col: dSASA,               label: dSASA,        higher_is_better: true,  weight: 1.5,
+        description: Buried surface area }
+    - { col: packstat,            label: packstat,     higher_is_better: true,  weight: 1.5,
+        description: Interface packing quality }
+    - { col: unsat_hbonds,        label: BUNS,         higher_is_better: false, weight: 1.5,
+        description: Buried unsatisfied hydrogen bonds }
+    - { col: V_inter_native_partner_pct, label: "V∩native%", higher_is_better: true, weight: 1.5,
+        description: Binder volume overlapping the native partner — mimicry of the natural pose }
+    - { col: surface_hydro,       label: surf_hydro,   higher_is_better: false, weight: 1.0,
+        description: Hydrophobic fraction of the binder surface }
+
+pymol:
+  # "truncate" keeps backbone + CB and lets Rosetta rebuild the side chain.
+  # "donor" transplants the reference rotamer instead.
+  reversion_strategy: truncate
+  colors:
+    binder: cyan
+    target: wheat
+    native_partner: lightblue

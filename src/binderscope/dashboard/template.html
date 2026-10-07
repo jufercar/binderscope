@@ -1,0 +1,519 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>__TITLE__</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+:root{
+  --bg:#0f172a;--panel:#1e293b;--card:#0f2744;--accent:#38bdf8;
+  --green:#4ade80;--red:#f87171;--yellow:#fbbf24;
+  --text:#e2e8f0;--muted:#64748b;--border:#334155;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;font-size:16px;
+     display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#hdr{background:var(--panel);padding:10px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+#hdr h1{font-size:22px;color:var(--accent)}
+#hdr p{color:var(--muted);font-size:14px;margin-top:2px}
+#main{display:flex;gap:10px;padding:10px;flex:1;min-height:0}
+#sidebar{width:290px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;min-height:0}
+.scard{background:var(--panel);border:1px solid var(--border);border-radius:8px;
+       display:flex;flex-direction:column;min-height:0}
+.scard-hdr{padding:7px 12px;background:var(--card);font-weight:700;font-size:13px;
+           color:var(--accent);letter-spacing:.06em;text-transform:uppercase;
+           border-bottom:1px solid var(--border);flex-shrink:0;border-radius:8px 8px 0 0}
+.scard-body{padding:10px;overflow-y:auto;flex:1}
+.scard-foot{padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0}
+.fr{display:grid;grid-template-columns:18px 1fr 42px 68px;gap:5px;align-items:center;margin-bottom:6px}
+.fr label{color:var(--muted);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.fr select,.fr input[type=text]{
+  background:#0a1929;border:1px solid var(--border);color:var(--text);
+  border-radius:4px;padding:4px 6px;font-size:14px;width:100%}
+.fr input[type=checkbox]{accent-color:var(--accent)}
+.btns{display:flex;gap:6px}
+.btn{padding:5px 12px;border:none;border-radius:5px;cursor:pointer;font-size:15px;font-weight:700}
+.bp{background:var(--accent);color:#000}.bs{background:var(--border);color:var(--text)}
+#fcount{font-size:14px;color:var(--muted);margin-top:6px}
+#fcount span{color:var(--green);font-weight:700}
+.chip{display:inline-flex;align-items:center;gap:3px;background:#0a1929;
+      border:1px solid var(--border);border-radius:10px;padding:4px 10px;
+      cursor:pointer;font-size:13px;margin:2px;user-select:none}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+.chip input{accent-color:var(--accent);margin:0;pointer-events:none}
+#rpanel{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:8px;
+        display:flex;flex-direction:column;min-height:0}
+#rpanel-hdr{padding:7px 14px;background:var(--card);font-weight:700;font-size:12px;
+            color:var(--accent);letter-spacing:.06em;text-transform:uppercase;
+            border-bottom:1px solid var(--border);flex-shrink:0;border-radius:8px 8px 0 0}
+#rplot{flex:1;min-height:0}
+#tsec{background:var(--panel);border:1px solid var(--border);border-radius:8px;
+      margin:0 10px 10px;flex-shrink:0;display:flex;flex-direction:column;height:38vh}
+#tbar{display:flex;align-items:center;gap:8px;padding:7px 12px;
+      border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#tbar input{background:#0a1929;border:1px solid var(--border);color:var(--text);
+            border-radius:4px;padding:5px 9px;font-size:15px;width:220px}
+#tbar span{font-size:14px;color:var(--muted)}
+#ctog{display:flex;flex-wrap:wrap;gap:3px;padding:5px 12px;
+      border-bottom:1px solid var(--border);max-height:72px;overflow-y:auto;flex-shrink:0}
+.cb{padding:2px 8px;border-radius:8px;background:#0a1929;border:1px solid var(--border);
+    color:var(--muted);cursor:pointer;font-size:13px}
+.cb.on{border-color:var(--accent);color:var(--accent)}
+#twrap{overflow:auto;flex:1}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{background:var(--card);position:sticky;top:0;z-index:2;padding:6px 10px;text-align:left;
+   cursor:pointer;white-space:nowrap;border-bottom:1px solid var(--border);
+   color:var(--muted);user-select:none;font-size:15px}
+th:hover{color:var(--accent)}
+th.sa::after{content:' ↑';color:var(--accent)}
+th.sd::after{content:' ↓';color:var(--accent)}
+td{padding:7px 10px;border-bottom:1px solid #1e293b;white-space:nowrap;
+   max-width:200px;overflow:hidden;text-overflow:ellipsis}
+tr.sel td{background:rgba(56,189,248,.08)}
+tr:hover td{background:rgba(255,255,255,.025)}
+td.ok{color:var(--green)}td.no{color:var(--red)}
+#tab-nav{margin-top:7px;display:flex;gap:4px}
+.tab-btn{background:var(--panel);border:1px solid var(--border);color:var(--muted);
+  padding:4px 16px;border-radius:5px 5px 0 0;cursor:pointer;font-size:14px;font-weight:700;
+  transition:color .15s,border-color .15s}
+.tab-btn.active{background:var(--card);border-bottom-color:var(--card);color:var(--accent)}
+.tab-btn:hover:not(.active){color:var(--text)}
+#tab-explorer{display:none;flex-direction:column;flex:1;min-height:0}
+#tab-ranking{display:none;flex-direction:column;flex:1;min-height:0;padding:10px;gap:8px;overflow:hidden}
+#tab-contexto{display:flex;flex:1;overflow-y:auto;padding:16px;flex-direction:column;gap:12px}
+.ctx-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px}
+.ctx-card h3{color:var(--accent);margin-bottom:10px;font-size:13px;text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+.ctx-card p,.ctx-card li{color:var(--muted);font-size:13px;line-height:1.7}
+.ctx-card ol{padding-left:18px;margin-top:6px}
+.ctx-card ol li{margin-bottom:4px}
+.ctx-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+.ctx-table th{background:var(--card);padding:5px 10px;text-align:left;color:var(--muted);font-size:12px;border-bottom:1px solid var(--border);white-space:nowrap}
+.ctx-table td{padding:5px 10px;border-bottom:1px solid #1e293b;color:var(--text)}
+.ctx-table tr:last-child td{border-bottom:none}
+.seg1{color:#38bdf8}.seg2{color:#4ade80}.seg3{color:#f472b6}.lnk{color:var(--yellow)}
+.chain-diagram{font-family:monospace;background:var(--card);border-radius:6px;padding:12px;font-size:13px;margin:10px 0;line-height:2}
+code{background:#0a1929;padding:1px 5px;border-radius:3px;font-size:12px;color:#94a3b8}
+#rank-bar{background:var(--panel);border:1px solid var(--border);border-radius:8px;flex:0 0 320px;min-height:200px}
+#rank-wrap{background:var(--panel);border:1px solid var(--border);border-radius:8px;flex:1;overflow:auto;min-height:0}
+#rank-wrap table{width:100%;border-collapse:collapse;font-size:13px}
+#rank-wrap th{background:var(--card);position:sticky;top:0;z-index:2;padding:5px 8px;
+  text-align:left;border-bottom:1px solid var(--border);color:var(--muted);white-space:nowrap;
+  cursor:pointer;user-select:none;font-size:12px}
+#rank-wrap th:hover{color:var(--accent)}
+#rank-wrap td{padding:5px 8px;border-bottom:1px solid #1e293b;white-space:nowrap;font-size:13px}
+</style>
+</head>
+<body>
+<div id="hdr">
+  <h1>__TITLE__</h1>
+  <p id="hs">__HSTXT__</p>
+  <div id="tab-nav">
+    <button class="tab-btn active" id="btn-contexto" onclick="switchTab('contexto')">Context</button>
+    <button class="tab-btn" id="btn-explorer" onclick="switchTab('explorer')">Explorer</button>
+    <button class="tab-btn" id="btn-ranking" onclick="switchTab('ranking')">Ranking</button>
+  </div>
+</div>
+<div id="tab-explorer">
+<div id="main">
+  <div id="sidebar">
+    <div class="scard" style="flex:2">
+      <div class="scard-hdr">Filters</div>
+      <div class="scard-body" id="fctrl"></div>
+      <div class="scard-foot">
+        <div class="btns">
+          <button class="btn bp" onclick="applyF()">Apply</button>
+          <button class="btn bs" onclick="resetF()">Reset</button>
+        </div>
+        <div id="fcount">Mostrando <span id="pc">—</span> / <span id="tc">—</span> diseños</div>
+      </div>
+    </div>
+    <div class="scard" style="flex:1">
+      <div class="scard-hdr">Ejes del radar</div>
+      <div class="scard-body" id="axctrl"></div>
+      <div class="scard-foot">
+        <div class="btns">
+          <button class="btn bp" onclick="renderRadar(false)" style="flex:1">↺ Radar</button>
+          <button class="btn bs" onclick="clearSel()">✕ Sel</button>
+        </div>
+        <div style="margin-top:5px;font-size:13px;color:var(--muted)" id="selcount">0 seleccionados</div>
+      </div>
+    </div>
+  </div>
+  <div id="rpanel">
+    <div id="rpanel-hdr">Radar — valores normalizados [0–1], 1 = mejor. Clic en fila → añadir al radar</div>
+    <div id="rplot"></div>
+  </div>
+</div>
+<div id="tsec">
+  <div id="tbar">
+    <b style="color:var(--accent);font-size:15px">Tabla</b>
+    <input type="text" id="srch" placeholder="Buscar diseño…" oninput="applyF()">
+    <span id="selcount2">0 seleccionados para radar</span>
+    <button class="btn bp" onclick="downloadFasta()" title="FASTA de diseños filtrados o seleccionados">⬇ FASTA</button>
+  </div>
+  <div id="ctog"></div>
+  <div id="twrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+</div>
+</div><!-- /tab-explorer -->
+
+<div id="tab-ranking">
+  <div style="display:flex;gap:8px;flex:0 0 330px;min-height:0">
+    <div id="rank-bar" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:8px"></div>
+    <div id="rank-radar" style="width:520px;flex-shrink:0;background:var(--panel);border:1px solid var(--border);border-radius:8px"></div>
+  </div>
+  <div id="rank-wrap"><table><thead id="rank-thead"></thead><tbody id="rank-tbody"></tbody></table></div>
+</div>
+
+<div id="tab-contexto">
+
+<div class="ctx-card" style="background:rgba(56,189,248,0.07);border-color:#38bdf8;margin-bottom:4px">
+  <p style="color:var(--text);font-size:14px;line-height:1.7">Use the <b style="color:var(--accent)">Explorer</b> tab to filter designs, compare them on the radar and export FASTA. Use <b style="color:var(--accent)">Ranking</b> for the multi-criteria ranking with a per-metric contribution radar.</p>
+</div>
+
+__CONTEXT_HTML__
+
+</div>
+
+<script>
+const DATA   = __DATA__;
+const RANK_EXCLUDE = __RANK_EXCLUDE__;
+const RMETA  = __RMETA__;
+const FDEFS  = __FDEFS__;
+const TCOLS  = __TCOLS__;
+const DVCOLS = __DVCOLS__;
+let fRows=[ ...DATA],sortedRows=[],selDesigns=new Set();
+let activeAxes=new Set(RMETA.slice(0,9).map(m=>m.col));
+let sortC=null,sortD=1,visCols=new Set(DVCOLS);
+const FSTATE={};
+function norm(val,meta){
+  if(val===''||val===null||val===undefined||isNaN(+val))return 0;
+  const v=+val,range=meta.max-meta.min;
+  if(range===0)return 0.5;
+  return Math.max(0,Math.min(1,meta.higher?(v-meta.min)/range:(meta.max-v)/range));
+}
+function cellCls(col,val){
+  const fs=FSTATE[col];
+  if(!fs||!fs.enabled||val===''||val===null||val===undefined)return '';
+  const v=+val,t=fs.val,op=fs.op;
+  const ok=op==='<'?v<t:op==='>'?v>t:op==='='?Math.abs(v-t)<1e-9:op==='<='?v<=t:v>=t;
+  return ok?'ok':'no';
+}
+function buildFilters(){
+  document.getElementById('fctrl').innerHTML=FDEFS.map((f,i)=>`
+    <div class="fr">
+      <input type="checkbox" id="fe${i}" ${f.enabled?'checked':''}>
+      <label for="fe${i}" title="${f.col}">${f.label}</label>
+      <select id="fo${i}">
+        ${['<','>','=','<=','>='].map(o=>`<option ${(f.op==='=='?'=':f.op)===o?'selected':''}>${o}</option>`).join('')}
+      </select>
+      <input type="text" id="fv${i}" value="${f.val}" onkeydown="if(event.key==='Enter') applyF()">
+    </div>`).join('');
+}
+function buildAxes(){
+  document.getElementById('axctrl').innerHTML=RMETA.map(m=>`
+    <label class="chip ${activeAxes.has(m.col)?'on':''}" id="chip_${m.col}">
+      <input type="checkbox" ${activeAxes.has(m.col)?'checked':''} onchange="togAx('${m.col}',this.checked)">
+      ${m.label}${m.higher?'':' ↓'}
+    </label>`).join('');
+}
+function togAx(col,v){
+  v?activeAxes.add(col):activeAxes.delete(col);
+  document.getElementById('chip_'+col).classList.toggle('on',v);
+  renderRadar(true);
+}
+function buildColToggles(){
+  document.getElementById('ctog').innerHTML=TCOLS.map(c=>
+    `<button class="cb ${visCols.has(c)?'on':''}" onclick="togCol('${c}',this)">${c}</button>`
+  ).join('');
+}
+function togCol(c,btn){
+  if(visCols.has(c)&&visCols.size>2){visCols.delete(c);btn.classList.remove('on');}
+  else{visCols.add(c);btn.classList.add('on');}
+  renderTable();
+}
+function applyF(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  FDEFS.forEach((f,i)=>{
+    FSTATE[f.col]={enabled:document.getElementById('fe'+i).checked,
+                   op:document.getElementById('fo'+i).value,
+                   val:+document.getElementById('fv'+i).value};
+  });
+  fRows=DATA.filter(row=>{
+    if(q&&!String(row.design||'').toLowerCase().includes(q))return false;
+    for(let i=0;i<FDEFS.length;i++){
+      if(!document.getElementById('fe'+i).checked)continue;
+      const rv=row[FDEFS[i].col];
+      if(rv===''||rv===null||rv===undefined)continue;
+      const v=+rv,thr=+document.getElementById('fv'+i).value,op=document.getElementById('fo'+i).value;
+      if(op==='<'&&!(v<thr))return false;
+      if(op==='>'&&!(v>thr))return false;
+      if(op==='='&&!(Math.abs(v-thr)<1e-9))return false;
+      if(op==='<='&&!(v<=thr))return false;
+      if(op==='>='&&!(v>=thr))return false;
+    }
+    return true;
+  });
+  document.getElementById('pc').textContent=fRows.length;
+  const keep=new Set(fRows.map(r=>r.design));
+  [...selDesigns].forEach(d=>{if(!keep.has(d))selDesigns.delete(d);});
+  updateSelCount();
+  renderTable();
+  try{renderRadar(true);}catch(e){console.warn('Radar no disponible:',e);}
+}
+function resetF(){
+  FDEFS.forEach((f,i)=>{
+    document.getElementById('fe'+i).checked=f.enabled;
+    document.getElementById('fo'+i).value=f.op==='=='?'=':f.op;
+    document.getElementById('fv'+i).value=f.val;
+  });
+  document.getElementById('srch').value='';
+  applyF();
+}
+function renderTable(){
+  const cols=TCOLS.filter(c=>visCols.has(c));
+  document.getElementById('thead').innerHTML='<tr>'
+    +'<th style="width:22px;min-width:22px"></th>'
+    +cols.map(c=>`<th onclick="srtBy('${c}')" class="${sortC===c?(sortD>0?'sa':'sd'):''}">${
+      c}</th>`).join('')+'</tr>';
+  const rows=[...fRows];
+  if(sortC){
+    rows.sort((a,b)=>{
+      const va=a[sortC],vb=b[sortC];
+      if(va===''||va===null)return 1;
+      if(vb===''||vb===null)return -1;
+      return(isNaN(+va)?String(va).localeCompare(String(vb)):+va-+vb)*sortD;
+    });
+  }
+  sortedRows=rows;
+  document.getElementById('tbody').innerHTML=rows.map(row=>{
+    const sel=selDesigns.has(row.design);
+    const esc=row.design;
+    return `<tr class="${sel?'sel':''}" onclick="togSel('${esc}',this)">
+      <td style="text-align:center;color:var(--accent);font-size:15px">${sel?'●':'○'}</td>
+      ${cols.map(c=>{
+        const v=row[c];
+        const d=(v!==''&&v!==null&&v!==undefined)?v:'—';
+        return `<td class="${cellCls(c,v)}" title="${v}">${d}</td>`;
+      }).join('')}
+    </tr>`;
+  }).join('');
+}
+function srtBy(c){sortC===c?sortD*=-1:(sortC=c,sortD=1);renderTable();}
+function togSel(design,tr){
+  if(selDesigns.has(design)){selDesigns.delete(design);tr.classList.remove('sel');tr.cells[0].textContent='○';}
+  else{
+    if(selDesigns.size>=10){alert('Máximo 10 diseños en el radar.');return;}
+    selDesigns.add(design);tr.classList.add('sel');tr.cells[0].textContent='●';
+  }
+  updateSelCount();renderRadar(true);
+}
+function clearSel(){selDesigns.clear();updateSelCount();renderTable();renderRadar(true);}
+function updateSelCount(){
+  const txt=selDesigns.size+' seleccionados para radar';
+  document.getElementById('selcount').textContent=txt;
+  document.getElementById('selcount2').textContent=txt;
+}
+const COLORS=['#38bdf8','#f472b6','#a78bfa','#34d399','#fb923c',
+              '#facc15','#60a5fa','#f87171','#4ade80','#e879f9'];
+function renderRadar(silent){
+  const axes=RMETA.filter(m=>activeAxes.has(m.col));
+  if(axes.length<3){if(!silent)alert('Selecciona al menos 3 ejes.');return;}
+  const designs=selDesigns.size>0?[...selDesigns]
+    :(sortedRows.length?sortedRows:fRows).slice(0,5).map(r=>r.design);
+  if(!designs.length){if(!silent)alert('No hay diseños.');Plotly.purge('rplot');return;}
+  const theta=axes.map(m=>m.label+(m.higher?'':' ↓'));
+  const traces=designs.map((d,i)=>{
+    const row=DATA.find(r=>r.design===d)||{};
+    const r=axes.map(m=>norm(row[m.col],m));
+    const rawVals=axes.map(m=>{
+      const v=row[m.col];
+      return(v!==''&&v!==null&&v!==undefined)?(+v).toFixed(3):'N/A';
+    });
+    return{type:'scatterpolar',r:[...r,r[0]],theta:[...theta,theta[0]],fill:'toself',
+           name:d.length>32?'…'+d.slice(-30):d,
+           line:{color:COLORS[i%COLORS.length],width:2},
+           fillcolor:COLORS[i%COLORS.length]+'22',
+           hovertemplate:axes.map((m,j)=>`<b>${m.label}</b>: ${rawVals[j]}`).join('<br>')
+                        +'<extra>'+d.slice(-35)+'</extra>'};
+  });
+  Plotly.react('rplot',traces,{
+    polar:{bgcolor:'#0a1929',
+           angularaxis:{tickfont:{color:'#94a3b8',size:15},linecolor:'#334155',gridcolor:'#1e293b'},
+           radialaxis:{visible:true,range:[0,1],tickfont:{color:'#475569',size:13},gridcolor:'#1e3452',linecolor:'#1e3452'}},
+    paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',
+    legend:{font:{color:'#94a3b8',size:14},bgcolor:'rgba(0,0,0,0)',orientation:'h',x:0,y:-0.15},
+    margin:{l:60,r:140,t:30,b:30},showlegend:true,
+  },{responsive:true,displayModeBar:false});
+}
+function downloadFasta(){
+  const source=selDesigns.size>0?DATA.filter(r=>selDesigns.has(r.design)):fRows;
+  if(!source.length){alert('No hay diseños.');return;}
+  const wrap=(seq,w=60)=>seq.replace(new RegExp(`(.{${w}})`,'g'),'$1\\n').trimEnd();
+  const text=source.map(r=>`>${r.design}\\n${wrap(r.Sequence||'')}`).join('\\n');
+  const a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(text);
+  const tag=selDesigns.size>0?'selected':'filtered';
+  a.download=`__SLUG___${source.length}_${tag}.fasta`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+document.getElementById('tc').textContent=DATA.length;
+
+// ── Ranking multicriterio ─────────────────────────────────────────────────────
+const RANK_METRICS=__RANK_METRICS__;
+let rankingData=null,rankRendered=false,rankSortC=null,rankSortD=1;
+let rankSelDesigns=new Set();
+
+function computeRanking(){
+  const valid=DATA.filter(r=>RANK_EXCLUDE.every(f=>{
+    const v=+r[f.col]; if(!isFinite(v))return true;
+    return f.op===">"?v>f.val:f.op==="<"?v<f.val:v===f.val;}));
+  const mmx={};
+  RANK_METRICS.forEach(m=>{
+    const vs=valid.map(r=>+r[m.col]).filter(v=>isFinite(v));
+    mmx[m.col]={mn:Math.min(...vs),mx:Math.max(...vs)};
+  });
+  return valid.map(r=>{
+    const contrib={};let total=0;
+    RANK_METRICS.forEach(m=>{
+      const v=+r[m.col];
+      if(!isFinite(v)){contrib[m.col]=0;return;}
+      const {mn,mx}=mmx[m.col];
+      const range=mx-mn;
+      const n=range===0?0.5:(v-mn)/range;
+      const c=(m.higher?n:1-n)*m.w;
+      contrib[m.col]=c;total+=c;
+    });
+    return Object.assign({},r,{_score:total,_contrib:contrib});
+  }).sort((a,b)=>b._score-a._score);
+}
+
+function renderRankingRadar(data){
+  const designs=rankSelDesigns.size>0
+    ?data.filter(r=>rankSelDesigns.has(r.design))
+    :data.slice(0,5);
+  if(!designs.length){try{Plotly.purge("rank-radar");}catch(e){}return;}
+  const axes=RANK_METRICS.map(m=>m.label);
+  const RCOLS=["#38bdf8","#f472b6","#a78bfa","#34d399","#fb923c",
+               "#facc15","#60a5fa","#f87171","#4ade80","#e879f9"];
+  const traces=designs.map((r,i)=>{
+    const vals=RANK_METRICS.map(m=>r._contrib[m.col]/m.w);
+    const rawVals=RANK_METRICS.map(m=>{
+      const v=r[m.col];
+      return(v!==""&&v!==null&&v!==undefined)?Number(v).toFixed(3):"N/A";
+    });
+    const name=r.design.length>28?"..."+r.design.slice(-26):r.design;
+    return{
+      type:"scatterpolar",r:[...vals,vals[0]],theta:[...axes,axes[0]],fill:"toself",name,
+      line:{color:RCOLS[i%RCOLS.length],width:2},
+      fillcolor:RCOLS[i%RCOLS.length]+"22",
+      hovertemplate:RANK_METRICS.map((m,j)=>`<b>${m.label}</b>: ${rawVals[j]}`).join("<br>")
+        +`<br><b>Score</b>: ${r._score.toFixed(3)}<extra>${name}</extra>`,
+    };
+  });
+  Plotly.react("rank-radar",traces,{
+    polar:{bgcolor:"#0a1929",
+      angularaxis:{tickfont:{color:"#94a3b8",size:12},linecolor:"#334155",gridcolor:"#1e293b"},
+      radialaxis:{visible:true,range:[0,1],tickfont:{color:"#475569",size:10},
+                 gridcolor:"#1e3452",linecolor:"#1e3452"}},
+    paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
+    legend:{font:{color:"#94a3b8",size:11},bgcolor:"rgba(0,0,0,0)",orientation:"h",x:0,y:-0.18},
+    margin:{l:45,r:45,t:25,b:55},showlegend:true,
+  },{responsive:true,displayModeBar:false});
+}
+
+function renderRankingChart(data){
+  const top=data.slice(0,25);
+  const labels=top.map(r=>r.design.length>32?"..."+r.design.slice(-30):r.design);
+  const RCOLS=["#38bdf8","#f472b6","#a78bfa","#34d399","#fb923c",
+               "#facc15","#60a5fa","#f87171","#4ade80","#e879f9","#22d3ee","#c084fc"];
+  const traces=RANK_METRICS.map((m,i)=>({
+    type:"bar",orientation:"h",
+    name:`${m.label} (x${m.w}${m.higher?"up":"dn"})`,
+    x:top.map(r=>r._contrib[m.col]),y:labels,
+    marker:{color:RCOLS[i%RCOLS.length]},
+    hovertemplate:`<b>${m.label}</b>: %{x:.3f}<extra></extra>`,
+  }));
+  Plotly.react("rank-bar",traces,{
+    barmode:"stack",
+    paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
+    xaxis:{title:"Score",color:"#94a3b8",gridcolor:"#1e293b",titlefont:{color:"#94a3b8"}},
+    yaxis:{autorange:"reversed",color:"#94a3b8",tickfont:{size:10}},
+    legend:{font:{color:"#94a3b8",size:10},bgcolor:"rgba(0,0,0,0)",
+            orientation:"h",x:0,y:1.55,xanchor:"left"},
+    margin:{l:200,r:10,t:140,b:35},
+  },{responsive:true,displayModeBar:false});
+}
+
+function renderRankingTable(data){
+  const rows=rankSortC?[...data].sort((a,b)=>{
+    const va=a[rankSortC],vb=b[rankSortC];
+    if(va===undefined)return 1;if(vb===undefined)return -1;
+    return(isNaN(+va)?String(va).localeCompare(String(vb)):+va-+vb)*rankSortD;
+  }):data;
+  const hdrs=[
+    {col:"_sel",label:""},
+    {col:"_rank",label:"#"},
+    {col:"design",label:"Design"},
+    {col:"_score",label:"Score"},
+    {col:"binder_len",label:"len"},
+  ].concat(RANK_METRICS.map(m=>({col:m.col,label:m.label})));
+  document.getElementById("rank-thead").innerHTML="<tr>"+hdrs.map(h=>{
+    if(h.col==="_sel")return`<th style="width:20px"></th>`;
+    const act=rankSortC===h.col;
+    const suf=act?(rankSortD>0?" \u2191":" \u2193"):"";
+    const sty=act?' style="color:var(--accent)"':"";
+    return `<th data-col='${h.col}' onclick='sortRank(this.dataset.col)'${sty}>${h.label}${suf}</th>`;
+  }).join("")+"</tr>";
+  document.getElementById("rank-tbody").innerHTML=rows.map(r=>{
+    const origRank=data.indexOf(r)+1;
+    const isSel=rankSelDesigns.has(r.design);
+    const bg=isSel?"rgba(56,189,248,0.12)":origRank<=3?"rgba(56,189,248,0.05)":origRank<=5?"rgba(74,222,128,0.04)":"";
+    const cells=hdrs.map(h=>{
+      if(h.col==="_sel") return `<td style="text-align:center;color:var(--accent)">${isSel?"●":"○"}</td>`;
+      if(h.col==="_rank") return `<td style="color:var(--accent);font-weight:700;text-align:center">${origRank}</td>`;
+      if(h.col==="design") return `<td style="font-family:monospace;max-width:190px;overflow:hidden;text-overflow:ellipsis" title="${r.design}">${r.design}</td>`;
+      if(h.col==="_score") return `<td style="color:var(--yellow);font-weight:700">${r._score.toFixed(3)}</td>`;
+      if(h.col==="binder_len") return `<td>${r.binder_len}</td>`;
+      const raw=r[h.col];
+      const m=RANK_METRICS.find(x=>x.col===h.col);
+      let color="var(--text)";
+      if(m){const pct=r._contrib[h.col]/m.w;color=`hsl(${pct*120},65%,50%)`;}
+      const disp=(raw!==""&&raw!==undefined&&raw!==null)?(isNaN(+raw)?raw:Number(raw).toFixed(3)):"--";
+      return `<td style="color:${color};text-align:right">${disp}</td>`;
+    });
+    return `<tr style="background:${bg};cursor:pointer" data-design="${r.design}" onclick="toggleRankSel(this.dataset.design)">${cells.join("")}</tr>`;
+  }).join("");
+}
+function sortRank(c){
+  rankSortC===c?rankSortD*=-1:(rankSortC=c,rankSortD=c==="_score"?-1:1);
+  renderRankingTable(rankingData);
+}
+function toggleRankSel(design){
+  if(rankSelDesigns.has(design))rankSelDesigns.delete(design);
+  else{if(rankSelDesigns.size>=10)return;rankSelDesigns.add(design);}
+  renderRankingTable(rankingData);
+  try{renderRankingRadar(rankingData);}catch(e){console.warn(e);}
+}
+function toggleSelFromRank(design){toggleRankSel(design);}
+function switchTab(tab){
+  ["explorer","ranking","contexto"].forEach(t=>{
+    document.getElementById("tab-"+t).style.display="none";
+    document.getElementById("btn-"+t).classList.remove("active");
+  });
+  document.getElementById("tab-"+tab).style.display="flex";
+  document.getElementById("btn-"+tab).classList.add("active");
+  if(tab==="ranking"&&!rankRendered){
+    rankingData=computeRanking();
+    try{renderRankingChart(rankingData);}catch(e){console.warn("bar:",e);}
+    try{renderRankingRadar(rankingData);}catch(e){console.warn("radar:",e);}
+    renderRankingTable(rankingData);
+    rankRendered=true;
+  }
+}
+
+buildFilters();buildAxes();buildColToggles();applyF();
+switchTab("contexto");
+</script>
+</body>
+</html>

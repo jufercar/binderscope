@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ── Run inputs and outputs ───────────────────────────────────────────────────
+# Structures, trajectories and model weights are large and often unpublished.
+# Keep them out of the repository; point at them from a config file instead.
+runs/
+output/
+outputs/
+*.pdb
+*.cif
+*.pse
+*.npz
+*.pkl
+*.log
+nohup.out
+
+# Generated analysis products
+*_metrics.csv
+*_metrics_structural.csv
+*_ranked.csv
+*_dashboard.html
+sequences.fasta
+
+# Allow the committed sample data through the rules above. Named explicitly so
+# that generated outputs (demo_ranked.csv and friends) stay ignored.
+!examples/demo_metrics.csv
+!examples/demo_dashboard.html
+!tests/fixtures/*.pdb
+
+# OS
+.DS_Store

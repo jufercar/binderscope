@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "binderscope"
+version = "0.1.0"
+description = "Structure-aware triage of protein binder designs: wild-type reversion, PyRosetta interface scoring, placement geometry, weighted ranking and an interactive dashboard."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "Juan Carrillo", email = "juanfc1995@gmail.com" }]
+keywords = [
+    "protein design", "binder design", "structural biology",
+    "pyrosetta", "bindcraft", "alphafold", "interface analysis",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+    "biopython>=1.80",
+    "numpy>=1.23",
+    "pandas>=1.5",
+    "scipy>=1.9",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.4"]
+
+[project.urls]
+Homepage = "https://github.com/jcarrillo/binderscope"
+Issues = "https://github.com/jcarrillo/binderscope/issues"
+
+[project.scripts]
+binderscope = "binderscope.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+binderscope = ["dashboard/template.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
